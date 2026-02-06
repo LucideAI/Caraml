@@ -1,0 +1,308 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ──────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+
+  ::selection {
+    background-color: rgba(6, 182, 212, 0.3);
+  }
+
+  body {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  #root {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  input, textarea, select {
+    outline: none;
+  }
+}
+
+/* ── Components ────────────────────────────────────────────────────────── */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
+           transition-all duration-150 ease-in-out
+           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-ide-bg
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-500
+           shadow-lg shadow-brand-500/20;
+  }
+
+  .btn-secondary {
+    @apply btn bg-slate-700 text-slate-200 hover:bg-slate-600 focus:ring-slate-500;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800 focus:ring-slate-500;
+  }
+
+  .btn-danger {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700 focus:ring-rose-500;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs;
+  }
+
+  .btn-xs {
+    @apply px-2 py-1 text-xs rounded-md;
+  }
+
+  .btn-icon {
+    @apply p-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800
+           transition-colors duration-150;
+  }
+
+  .input {
+    @apply w-full px-3 py-2.5 bg-slate-800/80 border border-slate-700 rounded-lg
+           text-slate-200 placeholder-slate-500
+           focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50
+           transition-colors duration-150;
+  }
+
+  .panel {
+    @apply bg-ide-panel border border-ide-border rounded-lg;
+  }
+
+  .panel-header {
+    @apply flex items-center justify-between px-3 py-2 border-b border-ide-border
+           text-xs font-semibold text-slate-400 uppercase tracking-wider;
+  }
+
+  .tab {
+    @apply flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400
+           border-b-2 border-transparent cursor-pointer
+           hover:text-slate-200 hover:bg-slate-800/50
+           transition-all duration-150;
+  }
+
+  .tab-active {
+    @apply text-slate-100 border-brand-500 bg-slate-800/30;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success {
+    @apply badge bg-emerald-500/20 text-emerald-400;
+  }
+
+  .badge-error {
+    @apply badge bg-rose-500/20 text-rose-400;
+  }
+
+  .badge-info {
+    @apply badge bg-brand-500/20 text-brand-400;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center
+           animate-fade-in;
+  }
+
+  .modal-content {
+    @apply bg-slate-900 border border-slate-700 rounded-xl shadow-2xl
+           animate-slide-up max-h-[90vh] overflow-auto;
+  }
+
+  .tooltip {
+    @apply absolute z-50 px-2 py-1 text-xs text-slate-200 bg-slate-800 border border-slate-700
+           rounded-md shadow-lg whitespace-nowrap pointer-events-none;
+  }
+}
+
+/* ── Utilities ─────────────────────────────────────────────────────────── */
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-cyan-300;
+  }
+
+  .glow {
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.15);
+  }
+
+  .glow-sm {
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.1);
+  }
+}
+
+/* ── Monaco Editor Overrides ───────────────────────────────────────────── */
+.monaco-editor {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+}
+
+.monaco-editor .margin {
+  background-color: #0f1629 !important;
+}
+
+.monaco-editor .monaco-editor-background {
+  background-color: #0a0e1a !important;
+}
+
+.monaco-editor .line-numbers {
+  color: #475569 !important;
+}
+
+.monaco-editor .current-line ~ .line-numbers {
+  color: #64748b !important;
+}
+
+/* ── Resize Handle ─────────────────────────────────────────────────────── */
+.resize-handle {
+  @apply relative;
+}
+
+.resize-handle::after {
+  content: '';
+  @apply absolute inset-0 z-10 cursor-col-resize;
+  width: 4px;
+  margin-left: -2px;
+}
+
+.resize-handle:hover::after {
+  @apply bg-brand-500/30;
+}
+
+.resize-handle-h {
+  @apply relative;
+}
+
+.resize-handle-h::after {
+  content: '';
+  @apply absolute inset-0 z-10 cursor-row-resize;
+  height: 4px;
+  margin-top: -2px;
+}
+
+.resize-handle-h:hover::after {
+  @apply bg-brand-500/30;
+}
+
+/* ── Memory Visualization ──────────────────────────────────────────────── */
+.memory-tree-line {
+  @apply border-l-2 border-slate-700 ml-3 pl-3;
+}
+
+.memory-value {
+  @apply font-mono text-xs px-1.5 py-0.5 rounded bg-slate-800;
+}
+
+/* ── Notification Animation ────────────────────────────────────────────── */
+.notification-enter {
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ── Loading Spinner ───────────────────────────────────────────────────── */
+.spinner {
+  @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Learn OCaml Exercise Description ─────────────────────────────────── */
+.learn-ocaml-description h1,
+.learn-ocaml-description h2,
+.learn-ocaml-description h3,
+.learn-ocaml-description h4 {
+  @apply font-semibold text-slate-200 mt-3 mb-1.5;
+}
+
+.learn-ocaml-description h1 { @apply text-lg; }
+.learn-ocaml-description h2 { @apply text-base; }
+.learn-ocaml-description h3 { @apply text-sm; }
+
+.learn-ocaml-description p {
+  @apply text-sm text-slate-300 leading-relaxed mb-2;
+}
+
+.learn-ocaml-description ul,
+.learn-ocaml-description ol {
+  @apply text-sm text-slate-300 ml-4 mb-2 space-y-1;
+}
+
+.learn-ocaml-description ul { list-style-type: disc; }
+.learn-ocaml-description ol { list-style-type: decimal; }
+
+.learn-ocaml-description code {
+  @apply text-xs font-mono bg-slate-800 text-brand-400 px-1 py-0.5 rounded;
+}
+
+.learn-ocaml-description pre {
+  @apply text-xs font-mono bg-slate-800 text-slate-300 p-2 rounded-lg mb-2 overflow-auto;
+}
+
+.learn-ocaml-description pre code {
+  @apply bg-transparent p-0;
+}
+
+.learn-ocaml-description a {
+  @apply text-brand-400 underline hover:text-brand-300;
+}
+
+.learn-ocaml-description table {
+  @apply w-full text-sm border-collapse mb-2;
+}
+
+.learn-ocaml-description th {
+  @apply text-left text-xs font-semibold text-slate-400 py-1 px-2 border-b border-slate-700;
+}
+
+.learn-ocaml-description td {
+  @apply text-sm text-slate-300 py-1 px-2 border-b border-slate-800;
+}
+
+.learn-ocaml-description img {
+  @apply max-w-full rounded-lg my-2;
+}
+
+.learn-ocaml-description blockquote {
+  @apply border-l-2 border-brand-500 pl-3 text-sm text-slate-400 italic my-2;
+}
