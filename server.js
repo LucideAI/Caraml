@@ -15,10 +15,10 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'camelcode-secret-key-change-in-production-2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'caraml-secret-key-change-in-production-2024';
 
 // ── Database Setup ──────────────────────────────────────────────────────────
-const db = new Database(join(__dirname, 'camelcode.db'));
+const db = new Database(join(__dirname, 'caraml.db'));
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -119,7 +119,7 @@ app.post('/api/auth/register', (req, res) => {
     const projectId = randomUUID();
     const defaultFiles = JSON.stringify({
       'main.ml': {
-        content: '(* Welcome to CamelCode! *)\n(* Your professional OCaml IDE *)\n\nlet () =\n  print_endline "Hello, OCaml!"\n\nlet square x = x * x\n\nlet rec factorial n =\n  if n <= 1 then 1\n  else n * factorial (n - 1)\n\nlet () =\n  Printf.printf "square 5 = %d\\n" (square 5);\n  Printf.printf "factorial 10 = %d\\n" (factorial 10)\n',
+        content: '(* Welcome to Caraml! *)\n(* Your professional OCaml IDE *)\n\nlet () =\n  print_endline "Hello, OCaml!"\n\nlet square x = x * x\n\nlet rec factorial n =\n  if n <= 1 then 1\n  else n * factorial (n - 1)\n\nlet () =\n  Printf.printf "square 5 = %d\\n" (square 5);\n  Printf.printf "factorial 10 = %d\\n" (factorial 10)\n',
         language: 'ocaml'
       }
     });
@@ -469,7 +469,7 @@ app.post('/api/execute', (req, res) => {
   const startTime = Date.now();
 
   // Create a temp file for the code
-  const tmpDir = join(tmpdir(), `camelcode-${randomUUID()}`);
+  const tmpDir = join(tmpdir(), `caraml-${randomUUID()}`);
   mkdirSync(tmpDir, { recursive: true });
   const tmpFile = join(tmpDir, 'code.ml');
 
@@ -686,7 +686,7 @@ app.post('/api/format', (req, res) => {
   }
 
   try {
-    const tmpDir = join(tmpdir(), `camelcode-fmt-${randomUUID()}`);
+    const tmpDir = join(tmpdir(), `caraml-fmt-${randomUUID()}`);
     mkdirSync(tmpDir, { recursive: true });
     const tmpFile = join(tmpDir, 'code.ml');
     const confFile = join(tmpDir, '.ocamlformat');
@@ -711,7 +711,7 @@ app.post('/api/format', (req, res) => {
 
 // ── Merlin helper: run a merlin command ─────────────────────────────────────
 function runMerlin(command, code) {
-  const tmpDir = join(tmpdir(), `camelcode-merlin-${randomUUID()}`);
+  const tmpDir = join(tmpdir(), `caraml-merlin-${randomUUID()}`);
   mkdirSync(tmpDir, { recursive: true });
   const tmpFile = join(tmpDir, 'code.ml');
   writeFileSync(tmpFile, code);
@@ -966,34 +966,33 @@ app.post('/api/learn-ocaml/connect', async (req, res) => {
       return res.status(400).json({ error: 'Server URL and token are required' });
     }
 
-    // Verify token works by fetching the exercise index (always works if token is valid)
-    let data;
-    try {
-      data = await learnOcamlFetch(serverUrl, 'exercise-index.json', token);
-    } catch (err) {
-      return res.status(502).json({ error: `Cannot reach Learn OCaml server: ${err.message}` });
-    }
-
-    if (!data) {
-      return res.status(401).json({ error: 'Invalid token — could not fetch exercise index' });
-    }
-
-    // Try to get nickname from save.json (may not exist yet → null)
-    let nickname = null;
-    try {
-      const save = await learnOcamlFetch(serverUrl, 'save.json', token);
-      if (save && save.nickname) nickname = save.nickname;
-    } catch {
-      // save.json may not exist yet for this token — that's ok
-    }
-
-    // Try version (may timeout on some servers)
+    // Step 1: Check server is reachable by fetching version (no token needed)
     let version = 'unknown';
     try {
       const vData = await learnOcamlFetch(serverUrl, 'version', null);
       if (vData && vData.version) version = vData.version;
+    } catch (err) {
+      return res.status(502).json({ error: `Cannot reach Learn OCaml server: ${err.message}` });
+    }
+
+    // Step 2: Validate token by fetching save.json — this is user-specific
+    // For invalid tokens: the server returns an HTTP error (400/403) → learnOcamlFetch throws
+    // For new valid tokens: the server returns 404 → learnOcamlFetch returns null (ok)
+    // For existing valid tokens: the server returns save data (ok)
+    let nickname = null;
+    try {
+      const save = await learnOcamlFetch(serverUrl, 'save.json', token);
+      if (save && save.nickname) nickname = save.nickname;
+    } catch (err) {
+      // If save.json fails with an HTTP error, the token is invalid
+      return res.status(401).json({ error: 'Invalid token — authentication failed. Please check your token.' });
+    }
+
+    // Step 3: Also verify with exercise-index.json (best-effort, confirms server works)
+    try {
+      await learnOcamlFetch(serverUrl, 'exercise-index.json', token);
     } catch {
-      // Version endpoint may not be accessible
+      // Non-critical — exercises may still load later
     }
 
     res.json({ version, nickname });
@@ -1206,6 +1205,6 @@ app.get('*', (req, res) => {
 
 // ── Start Server ────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`\n  🐫 CamelCode server running at http://localhost:${PORT}`);
-  console.log(`  📁 Database: ${join(__dirname, 'camelcode.db')}\n`);
+  console.log(`\n  🐫 Caraml server running at http://localhost:${PORT}`);
+  console.log(`  📁 Database: ${join(__dirname, 'caraml.db')}\n`);
 });

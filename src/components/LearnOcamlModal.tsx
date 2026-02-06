@@ -131,7 +131,7 @@ export function LearnOcamlModal() {
             <div className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg text-xs text-slate-400 leading-relaxed">
               <p>
                 Connect your Learn OCaml account to synchronize exercises, submit answers,
-                and view your grades directly from CamelCode. You'll need your server URL
+                and view your grades directly from Caraml. You'll need your server URL
                 and your personal token.
               </p>
             </div>

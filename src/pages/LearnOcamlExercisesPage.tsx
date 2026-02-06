@@ -255,7 +255,7 @@ export function LearnOcamlExercisesPage() {
             <h2 className="text-xl font-bold text-slate-100 mb-2">Connect to Learn OCaml</h2>
             <p className="text-sm text-slate-400 mb-6">
               Connect your Learn OCaml account to access exercises, submit your answers,
-              and track your progress directly from CamelCode.
+              and track your progress directly from Caraml.
             </p>
             <button
               onClick={() => setShowLearnOcamlModal(true)}

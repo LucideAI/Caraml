@@ -51,7 +51,7 @@ export function AuthModal() {
             <p className="text-sm text-slate-400 mt-1">
               {mode === 'login'
                 ? 'Sign in to access your projects'
-                : 'Start coding with CamelCode'}
+                : 'Start coding with Caraml'}
             </p>
           </div>
           <button onClick={() => setShowAuthModal(false)} className="btn-icon">
