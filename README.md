@@ -1,4 +1,4 @@
-﻿# CamelCode
+# Caraml
 
 IDE OCaml web complet (frontend React + backend Express) avec execution de code, visualisation memoire, partage de projets et integration Learn OCaml.
 
@@ -142,9 +142,9 @@ Caraml/
 
 Base de donnees locale SQLite:
 
-- `camelcode.db`
-- `camelcode.db-shm`
-- `camelcode.db-wal`
+- `caraml.db`
+- `caraml.db-shm`
+- `caraml.db-wal`
 
 ## API principale
 
