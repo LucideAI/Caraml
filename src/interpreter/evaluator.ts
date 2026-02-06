@@ -19,6 +19,10 @@ export class Evaluator {
   private exceptionTypes: Map<string, string | undefined> = new Map();
   private stepCount = 0;
   private maxSteps = 1_000_000;
+  private recursionDepth = 0;
+  private maxRecursionDepth = 5_000;
+  private startTime = 0;
+  private maxExecutionTimeMs = 10_000; // 10 seconds wall-clock limit
   private declaredValues: { name: string; type: string; value: string }[] = [];
 
   constructor() {
@@ -33,6 +37,8 @@ export class Evaluator {
     this.nextHeapId = 1;
     this.callStack = [{ name: 'toplevel', line: 0, env: this.env }];
     this.stepCount = 0;
+    this.recursionDepth = 0;
+    this.startTime = Date.now();
 
     const errors: any[] = [];
 
@@ -102,6 +108,10 @@ export class Evaluator {
     this.stepCount++;
     if (this.stepCount > this.maxSteps) {
       throw new RuntimeError('Maximum execution steps exceeded (possible infinite loop)', node.line);
+    }
+    // Check time limit every 1000 steps (avoid calling Date.now too often)
+    if (this.stepCount % 1000 === 0 && Date.now() - this.startTime > this.maxExecutionTimeMs) {
+      throw new RuntimeError(`Execution time limit exceeded (${this.maxExecutionTimeMs / 1000}s)`, node.line);
     }
 
     switch (node.kind) {
@@ -241,9 +251,14 @@ export class Evaluator {
       if (func.params.length > 1) {
         return { tag: 'fun', params: func.params.slice(1), body: func.body, env: newEnv };
       }
+      this.recursionDepth++;
+      if (this.recursionDepth > this.maxRecursionDepth) {
+        throw new RuntimeError(`Maximum recursion depth exceeded (${this.maxRecursionDepth})`, line);
+      }
       this.callStack.push({ name: 'lambda', line, env: newEnv });
       const result = this.eval(func.body, newEnv);
       this.callStack.pop();
+      this.recursionDepth--;
       return result;
     }
 
@@ -254,9 +269,14 @@ export class Evaluator {
       if (func.params.length > 1) {
         return { tag: 'fun', params: func.params.slice(1), body: func.body, env: newEnv };
       }
+      this.recursionDepth++;
+      if (this.recursionDepth > this.maxRecursionDepth) {
+        throw new RuntimeError(`Maximum recursion depth exceeded (${this.maxRecursionDepth})`, line);
+      }
       this.callStack.push({ name: func.name, line, env: newEnv });
       const result = this.eval(func.body, newEnv);
       this.callStack.pop();
+      this.recursionDepth--;
       return result;
     }
 
