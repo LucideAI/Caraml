@@ -149,7 +149,7 @@ export function SharedPage() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
             <span className="text-xl">🐫</span>
-            <span className="font-bold text-base text-gradient hidden sm:block">CamelCode</span>
+            <span className="font-bold text-base text-gradient hidden sm:block">Caraml</span>
           </div>
           <span className="text-slate-600">/</span>
           <span className="text-sm font-medium text-slate-300">{currentProject.name}</span>

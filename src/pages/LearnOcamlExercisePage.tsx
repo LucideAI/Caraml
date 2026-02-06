@@ -5,6 +5,7 @@ import { useStore } from '../store';
 import { Console } from '../components/Console';
 import { api } from '../services/api';
 import { interpret } from '../interpreter';
+import { registerOcamlLanguage } from '../components/Editor';
 import {
   ArrowLeft, Loader2, Play, CheckCircle2, AlertCircle,
   GraduationCap, FileText, Code, Upload, Trophy,
@@ -461,6 +462,10 @@ function LearnOcamlEditor({
   fontSize: number;
   onRun: () => void;
 }) {
+  const handleEditorBeforeMount = (monaco: any) => {
+    registerOcamlLanguage(monaco);
+  };
+
   const handleEditorMount = (editor: any, monaco: any) => {
     // Add keyboard shortcut for Run
     editor.addAction({
@@ -469,40 +474,33 @@ function LearnOcamlEditor({
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
       run: () => onRun(),
     });
-
-    // OCaml language configuration
-    monaco.languages.setLanguageConfiguration('plaintext', {
-      comments: { lineComment: '//', blockComment: ['(*', '*)'] },
-      brackets: [['(', ')'], ['[', ']'], ['{', '}']],
-      autoClosingPairs: [
-        { open: '(', close: ')' },
-        { open: '[', close: ']' },
-        { open: '{', close: '}' },
-        { open: '"', close: '"' },
-        { open: "'", close: "'" },
-      ],
-    });
   };
 
   return (
     <MonacoEditor
       height="100%"
-      language="plaintext"
-      theme="vs-dark"
+      language="ocaml"
+      theme="caraml-dark"
       value={code}
       onChange={(value: string | undefined) => onChange(value || '')}
+      beforeMount={handleEditorBeforeMount}
       onMount={handleEditorMount}
       options={{
         fontSize,
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+        fontLigatures: true,
         minimap: { enabled: false },
         scrollBeyondLastLine: false,
         lineNumbers: 'on',
         renderLineHighlight: 'line',
-        tabSize: 2,
+        tabSize: 4,
+        insertSpaces: true,
         automaticLayout: true,
         padding: { top: 8 },
         bracketPairColorization: { enabled: true },
+        suggestOnTriggerCharacters: true,
+        quickSuggestions: true,
+        snippetSuggestions: 'top',
         wordWrap: 'on',
       }}
     />

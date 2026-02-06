@@ -20,7 +20,7 @@ export default function App() {
       <div className="h-screen flex items-center justify-center bg-ide-bg">
         <div className="flex flex-col items-center gap-4">
           <div className="text-4xl">🐫</div>
-          <div className="text-brand-400 font-semibold text-lg">CamelCode</div>
+          <div className="text-brand-400 font-semibold text-lg">Caraml</div>
           <div className="spinner border-brand-400 w-6 h-6" />
         </div>
       </div>

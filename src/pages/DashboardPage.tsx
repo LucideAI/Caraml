@@ -74,7 +74,7 @@ export function DashboardPage() {
             <div className="text-center mb-16">
               <div className="text-6xl mb-6">🐫</div>
               <h1 className="text-4xl sm:text-5xl font-bold text-slate-100 mb-4">
-                <span className="text-gradient">CamelCode</span>
+                <span className="text-gradient">Caraml</span>
               </h1>
               <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
                 Professional OCaml IDE in your browser. Write, run, debug, and share
@@ -217,7 +217,7 @@ let () =
                       <div>
                         <h3 className="font-semibold text-slate-300">Learn OCaml Integration</h3>
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Connect your university Learn OCaml account to access exercises and submit directly from CamelCode
+                          Connect your university Learn OCaml account to access exercises and submit directly from Caraml
                         </p>
                       </div>
                     </div>
