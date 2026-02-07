@@ -102,7 +102,14 @@ Ensuite, `npm run dev` detecte automatiquement ces outils.
 Pour desactiver l'auto-bootstrap:
 
 ```bash
+npm run dev:no-ocaml
+```
+
+Ou via option/variable d'environnement:
+
+```bash
 CARAML_SKIP_OCAML_AUTO_SETUP=1 npm run dev
+npm run dev -- --skip-ocaml
 ```
 
 PowerShell:

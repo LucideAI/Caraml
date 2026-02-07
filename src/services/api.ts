@@ -141,7 +141,7 @@ class ApiClient {
     });
   }
 
-  async runToplevel(code: string) {
+  async runToplevel(code: string, signal?: AbortSignal) {
     return this.request<{
       backend: boolean;
       output?: string;
@@ -153,6 +153,7 @@ class ApiClient {
     }>('/toplevel', {
       method: 'POST',
       body: JSON.stringify({ code }),
+      signal,
     });
   }
 

@@ -43,9 +43,9 @@ export function FileTree() {
   };
 
   const getFileIcon = (filename: string) => {
-    if (filename.endsWith('.ml')) return <FileCode size={14} className="text-orange-400" />;
-    if (filename.endsWith('.mli')) return <FileCode size={14} className="text-blue-400" />;
-    return <FileText size={14} className="text-slate-400" />;
+    if (filename.endsWith('.ml')) return <FileCode size={14} className="text-orange-400 shrink-0" />;
+    if (filename.endsWith('.mli')) return <FileCode size={14} className="text-blue-400 shrink-0" />;
+    return <FileText size={14} className="text-slate-400 shrink-0" />;
   };
 
   return (
@@ -64,10 +64,10 @@ export function FileTree() {
         </button>
       </div>
 
-      <div className="flex-1 overflow-auto py-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden py-1">
         {/* New file input */}
         {isCreating && (
-          <div className="flex items-center gap-1 px-2 py-1">
+          <div className="flex min-w-0 items-center gap-1 px-2 py-1">
             <FileCode size={14} className="text-orange-400 shrink-0" />
             <input
               type="text"
@@ -78,7 +78,7 @@ export function FileTree() {
                 if (e.key === 'Escape') setIsCreating(false);
               }}
               placeholder="filename.ml"
-              className="flex-1 bg-slate-800 border border-brand-500 rounded px-1.5 py-0.5 text-xs text-slate-200 focus:outline-none"
+              className="min-w-0 flex-1 bg-slate-800 border border-brand-500 rounded px-1.5 py-0.5 text-xs text-slate-200 focus:outline-none"
               autoFocus
             />
             <button onClick={handleCreate} className="text-emerald-400 hover:text-emerald-300">
@@ -94,7 +94,7 @@ export function FileTree() {
         {files.map((filename) => (
           <div
             key={filename}
-            className={`group flex items-start gap-1.5 px-3 py-1.5 cursor-pointer text-sm transition-colors ${
+            className={`group flex min-w-0 items-center gap-1.5 px-3 py-1.5 cursor-pointer text-sm transition-colors ${
               activeFile === filename
                 ? 'bg-ide-active text-slate-100 border-r-2 border-brand-500'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-ide-hover'
@@ -113,39 +113,41 @@ export function FileTree() {
                   if (e.key === 'Escape') setRenamingFile(null);
                 }}
                 onBlur={() => handleRename(filename)}
-                className="flex-1 bg-slate-800 border border-brand-500 rounded px-1.5 py-0 text-xs text-slate-200 focus:outline-none"
+                className="min-w-0 flex-1 bg-slate-800 border border-brand-500 rounded px-1.5 py-0 text-xs text-slate-200 focus:outline-none"
                 autoFocus
               />
             ) : (
-              <span className="flex-1 text-xs whitespace-normal break-words leading-4">{filename}</span>
+              <span className="min-w-0 flex-1 text-xs truncate leading-4">{filename}</span>
             )}
 
             {/* File actions (shown on hover) */}
             {renamingFile !== filename && (
-              <div className="hidden group-hover:flex items-center gap-0.5 shrink-0">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setRenamingFile(filename);
-                    setRenameValue(filename);
-                  }}
-                  className="p-0.5 text-slate-500 hover:text-slate-300 rounded"
-                  title="Rename"
-                >
-                  <Pencil size={11} />
-                </button>
-                {files.length > 1 && (
+              <div className="shrink-0 w-10 flex justify-end">
+                <div className="hidden group-hover:flex items-center gap-0.5">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDelete(filename);
+                      setRenamingFile(filename);
+                      setRenameValue(filename);
                     }}
-                    className="p-0.5 text-slate-500 hover:text-rose-400 rounded"
-                    title="Delete"
+                    className="p-0.5 text-slate-500 hover:text-slate-300 rounded"
+                    title="Rename"
                   >
-                    <Trash2 size={11} />
+                    <Pencil size={11} />
                   </button>
-                )}
+                  {files.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(filename);
+                      }}
+                      className="p-0.5 text-slate-500 hover:text-rose-400 rounded"
+                      title="Delete"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
