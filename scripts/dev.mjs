@@ -1,9 +1,22 @@
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const rootDir = dirname(scriptsDir);
+const ensureOcamlPath = join(rootDir, 'scripts', 'ensure-ocaml.mjs');
+
+if (process.env.CARAML_SKIP_OCAML_AUTO_SETUP !== '1') {
+  const ensureResult = spawnSync(process.execPath, [ensureOcamlPath], {
+    cwd: rootDir,
+    env: process.env,
+    stdio: 'inherit',
+  });
+
+  if (ensureResult.error || ensureResult.status !== 0) {
+    console.warn('[dev] OCaml auto-setup step failed. Continuing in fallback mode.');
+  }
+}
 
 const processes = [
   {
