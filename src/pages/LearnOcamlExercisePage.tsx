@@ -495,6 +495,7 @@ function LearnOcamlEditor({
         renderLineHighlight: 'line',
         tabSize: 4,
         insertSpaces: true,
+        detectIndentation: false,
         automaticLayout: true,
         padding: { top: 8 },
         bracketPairColorization: { enabled: true },

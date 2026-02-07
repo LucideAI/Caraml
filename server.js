@@ -119,7 +119,7 @@ app.post('/api/auth/register', (req, res) => {
     const projectId = randomUUID();
     const defaultFiles = JSON.stringify({
       'main.ml': {
-        content: '(* Welcome to Caraml! *)\n(* Your professional OCaml IDE *)\n\nlet () =\n  print_endline "Hello, OCaml!"\n\nlet square x = x * x\n\nlet rec factorial n =\n  if n <= 1 then 1\n  else n * factorial (n - 1)\n\nlet () =\n  Printf.printf "square 5 = %d\\n" (square 5);\n  Printf.printf "factorial 10 = %d\\n" (factorial 10)\n',
+        content: '(* Welcome to Caraml! *)\n(* Your professional OCaml IDE *)\n\nlet () =\n    print_endline "Hello, OCaml!"\n\nlet square x = x * x\n\nlet rec factorial n =\n    if n <= 1 then 1\n    else n * factorial (n - 1)\n\nlet () =\n    Printf.printf "square 5 = %d\\n" (square 5);\n    Printf.printf "factorial 10 = %d\\n" (factorial 10)\n',
         language: 'ocaml'
       }
     });
@@ -189,47 +189,47 @@ app.post('/api/projects', authenticate, (req, res) => {
     if (!name) return res.status(400).json({ error: 'Project name is required' });
 
     const id = randomUUID();
-    let defaultContent = '(* New OCaml Project *)\n\nlet () =\n  print_endline "Hello, World!"\n';
+    let defaultContent = '(* New OCaml Project *)\n\nlet () =\n    print_endline "Hello, World!"\n';
 
     if (template === 'algorithms') {
       defaultContent = `(* Algorithms & Data Structures *)
 
 (* Binary search *)
 let binary_search arr target =
-  let rec aux lo hi =
-    if lo > hi then -1
-    else
-      let mid = (lo + hi) / 2 in
-      if arr.(mid) = target then mid
-      else if arr.(mid) < target then aux (mid + 1) hi
-      else aux lo (mid - 1)
-  in
-  aux 0 (Array.length arr - 1)
+    let rec aux lo hi =
+        if lo > hi then -1
+        else
+            let mid = (lo + hi) / 2 in
+            if arr.(mid) = target then mid
+            else if arr.(mid) < target then aux (mid + 1) hi
+            else aux lo (mid - 1)
+    in
+    aux 0 (Array.length arr - 1)
 
 (* Quick sort *)
 let rec quicksort = function
-  | [] -> []
-  | pivot :: rest ->
-    let left = List.filter (fun x -> x < pivot) rest in
-    let right = List.filter (fun x -> x >= pivot) rest in
-    quicksort left @ [pivot] @ quicksort right
+    | [] -> []
+    | pivot :: rest ->
+        let left = List.filter (fun x -> x < pivot) rest in
+        let right = List.filter (fun x -> x >= pivot) rest in
+        quicksort left @ [pivot] @ quicksort right
 
 let () =
-  let sorted = quicksort [3; 6; 8; 10; 1; 2; 1] in
-  List.iter (fun x -> Printf.printf "%d " x) sorted;
-  print_newline ()
+    let sorted = quicksort [3; 6; 8; 10; 1; 2; 1] in
+    List.iter (fun x -> Printf.printf "%d " x) sorted;
+    print_newline ()
 `;
     } else if (template === 'functional') {
       defaultContent = `(* Functional Programming Patterns *)
 
 (* Option monad *)
 let ( >>= ) opt f = match opt with
-  | None -> None
-  | Some x -> f x
+    | None -> None
+    | Some x -> f x
 
 let ( >>| ) opt f = match opt with
-  | None -> None
-  | Some x -> Some (f x)
+    | None -> None
+    | Some x -> Some (f x)
 
 (* Pipe operator *)
 let ( |> ) x f = f x
@@ -242,12 +242,12 @@ let add x y = x + y
 let add5 = add 5
 
 let () =
-  let result = Some 42 >>| (fun x -> x * 2) >>= (fun x ->
-    if x > 50 then Some x else None
-  ) in
-  match result with
-  | Some v -> Printf.printf "Result: %d\\n" v
-  | None -> print_endline "No result"
+    let result = Some 42 >>| (fun x -> x * 2) >>= (fun x ->
+        if x > 50 then Some x else None
+    ) in
+    match result with
+    | Some v -> Printf.printf "Result: %d\\n" v
+    | None -> print_endline "No result"
 `;
     }
 
