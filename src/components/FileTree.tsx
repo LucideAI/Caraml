@@ -94,7 +94,7 @@ export function FileTree() {
         {files.map((filename) => (
           <div
             key={filename}
-            className={`group flex items-center gap-1.5 px-3 py-1 cursor-pointer text-sm transition-colors ${
+            className={`group flex items-start gap-1.5 px-3 py-1.5 cursor-pointer text-sm transition-colors ${
               activeFile === filename
                 ? 'bg-ide-active text-slate-100 border-r-2 border-brand-500'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-ide-hover'
@@ -117,7 +117,7 @@ export function FileTree() {
                 autoFocus
               />
             ) : (
-              <span className="flex-1 truncate text-xs">{filename}</span>
+              <span className="flex-1 text-xs whitespace-normal break-words leading-4">{filename}</span>
             )}
 
             {/* File actions (shown on hover) */}
