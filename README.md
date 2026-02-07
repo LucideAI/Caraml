@@ -68,6 +68,24 @@ Depuis `Caraml/`:
 npm install
 ```
 
+### Installation facilitee de la toolchain OCaml (optionnelle)
+
+On ne versionne pas les binaires `ocaml` / `ocamlmerlin` / `ocamlformat` dans Git (taille, portabilite, maintenance).
+A la place, le projet fournit un script d'installation reproductible via `opam`:
+
+```bash
+npm run setup:ocaml
+```
+
+Le script cree (ou reutilise) un switch local `./_opam` et installe:
+
+- `ocaml-base-compiler.5.6.0`
+- `merlin.5.6.1-504`
+- `ocamlformat.0.28.1`
+
+Ensuite, `npm run dev` detecte automatiquement ces outils.
+Si `opam` n'est pas encore installe: https://opam.ocaml.org/doc/Install.html
+
 ## Lancer le projet
 
 ### Developpement (frontend + backend)
