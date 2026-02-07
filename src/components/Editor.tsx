@@ -114,16 +114,16 @@ export const ocamlLanguageDef: any = {
 export const ocamlCompletions = [
   // Keywords
   { label: 'let', kind: 'Keyword', insertText: 'let ${1:name} = ${2:value}', insertTextRules: 4, detail: 'Variable binding' },
-  { label: 'let rec', kind: 'Keyword', insertText: 'let rec ${1:name} ${2:params} =\n  ${3:body}', insertTextRules: 4, detail: 'Recursive function' },
-  { label: 'if', kind: 'Keyword', insertText: 'if ${1:condition} then\n  ${2:then_expr}\nelse\n  ${3:else_expr}', insertTextRules: 4, detail: 'Conditional' },
+  { label: 'let rec', kind: 'Keyword', insertText: 'let rec ${1:name} ${2:params} =\n    ${3:body}', insertTextRules: 4, detail: 'Recursive function' },
+  { label: 'if', kind: 'Keyword', insertText: 'if ${1:condition} then\n    ${2:then_expr}\nelse\n    ${3:else_expr}', insertTextRules: 4, detail: 'Conditional' },
   { label: 'match', kind: 'Keyword', insertText: 'match ${1:expr} with\n| ${2:pattern} -> ${3:body}', insertTextRules: 4, detail: 'Pattern matching' },
   { label: 'fun', kind: 'Keyword', insertText: 'fun ${1:x} -> ${2:body}', insertTextRules: 4, detail: 'Anonymous function' },
   { label: 'function', kind: 'Keyword', insertText: 'function\n| ${1:pattern} -> ${2:body}', insertTextRules: 4, detail: 'Pattern matching function' },
-  { label: 'type', kind: 'Keyword', insertText: 'type ${1:name} =\n  | ${2:Constructor}', insertTextRules: 4, detail: 'Type declaration' },
-  { label: 'begin', kind: 'Keyword', insertText: 'begin\n  ${1:body}\nend', insertTextRules: 4, detail: 'Block expression' },
-  { label: 'try', kind: 'Keyword', insertText: 'try\n  ${1:expr}\nwith\n| ${2:pattern} -> ${3:handler}', insertTextRules: 4, detail: 'Exception handling' },
-  { label: 'for', kind: 'Keyword', insertText: 'for ${1:i} = ${2:0} to ${3:n} do\n  ${4:body}\ndone', insertTextRules: 4, detail: 'For loop' },
-  { label: 'while', kind: 'Keyword', insertText: 'while ${1:condition} do\n  ${2:body}\ndone', insertTextRules: 4, detail: 'While loop' },
+  { label: 'type', kind: 'Keyword', insertText: 'type ${1:name} =\n    | ${2:Constructor}', insertTextRules: 4, detail: 'Type declaration' },
+  { label: 'begin', kind: 'Keyword', insertText: 'begin\n    ${1:body}\nend', insertTextRules: 4, detail: 'Block expression' },
+  { label: 'try', kind: 'Keyword', insertText: 'try\n    ${1:expr}\nwith\n| ${2:pattern} -> ${3:handler}', insertTextRules: 4, detail: 'Exception handling' },
+  { label: 'for', kind: 'Keyword', insertText: 'for ${1:i} = ${2:0} to ${3:n} do\n    ${4:body}\ndone', insertTextRules: 4, detail: 'For loop' },
+  { label: 'while', kind: 'Keyword', insertText: 'while ${1:condition} do\n    ${2:body}\ndone', insertTextRules: 4, detail: 'While loop' },
   { label: 'exception', kind: 'Keyword', insertText: 'exception ${1:Name} of ${2:type}', insertTextRules: 4, detail: 'Exception declaration' },
 
   // Common functions
@@ -163,8 +163,8 @@ export const ocamlCompletions = [
   { label: 'Array.length', kind: 'Function', insertText: 'Array.length ${1:arr}', insertTextRules: 4, detail: "'a array -> int" },
 
   // Snippets
-  { label: 'module', kind: 'Snippet', insertText: 'module ${1:Name} = struct\n  ${2:body}\nend', insertTextRules: 4, detail: 'Module declaration' },
-  { label: 'sig', kind: 'Snippet', insertText: 'sig\n  ${1:body}\nend', insertTextRules: 4, detail: 'Module signature' },
+  { label: 'module', kind: 'Snippet', insertText: 'module ${1:Name} = struct\n    ${2:body}\nend', insertTextRules: 4, detail: 'Module declaration' },
+  { label: 'sig', kind: 'Snippet', insertText: 'sig\n    ${1:body}\nend', insertTextRules: 4, detail: 'Module signature' },
 ];
 
 /**
@@ -486,6 +486,7 @@ export function Editor({ onRun }: EditorProps) {
         automaticLayout: true,
         tabSize: 4,
         insertSpaces: true,
+        detectIndentation: false,
         wordWrap: 'off',
         padding: { top: 12, bottom: 12 },
         suggestOnTriggerCharacters: true,
