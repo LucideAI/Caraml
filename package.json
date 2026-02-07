@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "dev:no-ocaml": "node scripts/dev.mjs --skip-ocaml",
     "dev:client": "vite --port 5173",
     "dev:server": "node server.js",
     "ensure:ocaml": "node scripts/ensure-ocaml.mjs",

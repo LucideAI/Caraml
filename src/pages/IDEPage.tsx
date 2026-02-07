@@ -19,6 +19,14 @@ import {
   RESIZE_HANDLE_WIDTH,
 } from '../utils/panelSizing';
 
+function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException) return error.name === 'AbortError';
+  if (typeof error === 'object' && error !== null && 'name' in error) {
+    return (error as { name?: string }).name === 'AbortError';
+  }
+  return false;
+}
+
 export function IDEPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -37,6 +45,9 @@ export function IDEPage() {
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{ panel: 'fileTree' | 'memory'; startX: number; startWidth: number } | null>(null);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runSeqRef = useRef(0);
   const fileNames = currentProject ? Object.keys(currentProject.files).sort() : [];
   const fileNamesKey = fileNames.join('\u0000');
 
@@ -180,39 +191,65 @@ export function IDEPage() {
     setMemoryPanelWidth,
   ]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleRun();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        saveProject();
-      }
-      // Ctrl+Shift+F = format
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
-        e.preventDefault();
-        handleFormat();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [currentProject, activeFile, capabilities]);
-
   // ── Run: Use real OCaml backend if available, fallback to browser interpreter
   const handleRun = useCallback(async () => {
-    if (!currentProject || !activeFile || isRunning) return;
+    if (!currentProject || !activeFile) return;
     const file = currentProject.files[activeFile];
     if (!file) return;
 
+    if (runAbortRef.current) {
+      runAbortRef.current.abort();
+      runAbortRef.current = null;
+    }
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+
+    const runSeq = ++runSeqRef.current;
     setIsRunning(true);
+
+    let controller: AbortController | null = null;
+    const finalizeIfCurrent = () => {
+      if (runSeqRef.current === runSeq) {
+        setIsRunning(false);
+      }
+    };
+    const scheduleFallback = () => {
+      fallbackTimerRef.current = setTimeout(() => {
+        if (runSeqRef.current !== runSeq) return;
+        try {
+          const result = interpret(file.content);
+          setExecutionResult(result);
+        } catch (err: any) {
+          if (runSeqRef.current !== runSeq) return;
+          setExecutionResult({
+            output: '',
+            values: [],
+            errors: [{ line: 0, column: 0, message: err.message || 'Unknown error' }],
+            memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
+            executionTimeMs: 0,
+          });
+        } finally {
+          if (fallbackTimerRef.current) {
+            clearTimeout(fallbackTimerRef.current);
+            fallbackTimerRef.current = null;
+          }
+          finalizeIfCurrent();
+        }
+      }, 10);
+    };
 
     try {
       if (capabilities.ocaml) {
-        // Use real OCaml toplevel via backend
-        const toplevelResult = await api.runToplevel(file.content);
+        controller = new AbortController();
+        runAbortRef.current = controller;
+        const toplevelResult = await api.runToplevel(file.content, controller.signal);
+
+        if (runAbortRef.current === controller) {
+          runAbortRef.current = null;
+        }
+        if (runSeqRef.current !== runSeq) return;
 
         if (toplevelResult.backend) {
           // Also run the browser interpreter for memory visualization
@@ -231,45 +268,24 @@ export function IDEPage() {
             memoryState,
             executionTimeMs: toplevelResult.executionTimeMs || 0,
           });
-          setIsRunning(false);
+          finalizeIfCurrent();
           return;
         }
       }
 
-      // Fallback: browser-based interpreter
-      setTimeout(() => {
-        try {
-          const result = interpret(file.content);
-          setExecutionResult(result);
-        } catch (err: any) {
-          setExecutionResult({
-            output: '',
-            values: [],
-            errors: [{ line: 0, column: 0, message: err.message || 'Unknown error' }],
-            memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
-            executionTimeMs: 0,
-          });
-        } finally {
-          setIsRunning(false);
-        }
-      }, 10);
-    } catch (err: any) {
-      // Network error or backend issue — fallback to local
-      try {
-        const result = interpret(file.content);
-        setExecutionResult(result);
-      } catch (localErr: any) {
-        setExecutionResult({
-          output: '',
-          values: [],
-          errors: [{ line: 0, column: 0, message: localErr.message || 'Unknown error' }],
-          memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
-          executionTimeMs: 0,
-        });
+      if (runSeqRef.current !== runSeq) return;
+      scheduleFallback();
+    } catch (err: unknown) {
+      if (runAbortRef.current === controller) {
+        runAbortRef.current = null;
       }
-      setIsRunning(false);
+      if (isAbortError(err)) {
+        return;
+      }
+      if (runSeqRef.current !== runSeq) return;
+      scheduleFallback();
     }
-  }, [currentProject, activeFile, isRunning, setExecutionResult, setIsRunning, capabilities]);
+  }, [currentProject, activeFile, setExecutionResult, setIsRunning, capabilities]);
 
   // ── Format: Use ocamlformat if available
   const handleFormat = useCallback(async () => {
@@ -287,6 +303,50 @@ export function IDEPage() {
       addNotification('error', `Format failed: ${err.message}`);
     }
   }, [currentProject, activeFile, capabilities, addNotification]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const insideMonaco = !!target?.closest('.monaco-editor');
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (insideMonaco) return;
+        e.preventDefault();
+        void handleRun();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        void saveProject();
+        return;
+      }
+      // Ctrl+Shift+F = format
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F') {
+        e.preventDefault();
+        void handleFormat();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRun, saveProject, handleFormat]);
+
+  useEffect(() => {
+    return () => {
+      runSeqRef.current += 1;
+      if (runAbortRef.current) {
+        runAbortRef.current.abort();
+        runAbortRef.current = null;
+      }
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      setIsRunning(false);
+    };
+  }, [setIsRunning]);
 
   if (isProjectLoading && (!currentProject || currentProject.id !== projectId)) {
     return (
@@ -402,3 +462,4 @@ export function IDEPage() {
     </div>
   );
 }
+
