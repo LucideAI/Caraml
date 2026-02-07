@@ -14,7 +14,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = 3001;
+const DEFAULT_PORT = 3001;
+const portFromEnv = Number.parseInt(process.env.CARAML_API_PORT || process.env.PORT || '', 10);
+const PORT = Number.isFinite(portFromEnv) && portFromEnv > 0 ? portFromEnv : DEFAULT_PORT;
 const JWT_SECRET = process.env.JWT_SECRET || 'caraml-secret-key-change-in-production-2024';
 
 // ── Database Setup ──────────────────────────────────────────────────────────
