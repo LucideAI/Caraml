@@ -129,7 +129,7 @@ npm run dev
 ```
 
 - Frontend: `http://localhost:5173`
-- API backend: `http://localhost:3001`
+- API backend: `http://localhost:3001` (ou un port libre suivant, si `3001` est deja pris)
 - Le frontend proxy automatiquement `/api` vers le backend.
 - Si `ocaml`, `ocamlmerlin` ou `ocamlformat` ne sont pas disponibles, le serveur bascule proprement en mode degrade (fallback navigateur + fonctions optionnelles desactivees).
 

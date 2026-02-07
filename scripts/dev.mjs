@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'child_process';
+import { createServer } from 'net';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -24,16 +25,67 @@ if (!skipOcamlAutoSetup) {
   console.log('[dev] Skipping OCaml auto-setup (requested).');
 }
 
+function parsePort(value) {
+  if (!value) return null;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 65535) return null;
+  return parsed;
+}
+
+function canListenOnPort(port) {
+  return new Promise((resolve) => {
+    const tester = createServer();
+
+    const onError = () => {
+      tester.removeAllListeners();
+      resolve(false);
+    };
+
+    tester.once('error', onError);
+    tester.listen({ port, host: '127.0.0.1' }, () => {
+      tester.close(() => resolve(true));
+    });
+  });
+}
+
+async function findAvailablePort(startPort, maxAttempts = 25) {
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const candidate = startPort + offset;
+    // eslint-disable-next-line no-await-in-loop
+    const available = await canListenOnPort(candidate);
+    if (available) return candidate;
+  }
+  return null;
+}
+
+const requestedApiPort = parsePort(process.env.CARAML_API_PORT) ?? 3001;
+const apiPort = await findAvailablePort(requestedApiPort);
+
+if (!apiPort) {
+  console.error(`[dev] Could not find a free API port starting from ${requestedApiPort}.`);
+  process.exit(1);
+}
+if (apiPort !== requestedApiPort) {
+  console.warn(`[dev] API port ${requestedApiPort} is in use, using ${apiPort} instead.`);
+}
+
+const sharedEnv = {
+  ...process.env,
+  CARAML_API_PORT: String(apiPort),
+};
+
 const processes = [
   {
     name: 'server',
     command: process.execPath,
     args: ['server.js'],
+    env: { ...sharedEnv, PORT: String(apiPort) },
   },
   {
     name: 'client',
     command: process.execPath,
     args: [join(rootDir, 'node_modules', 'vite', 'bin', 'vite.js'), '--port', '5173'],
+    env: sharedEnv,
   },
 ];
 
@@ -68,7 +120,7 @@ function triggerShutdown(reason, code = 0) {
 for (const proc of processes) {
   const child = spawn(proc.command, proc.args, {
     cwd: rootDir,
-    env: process.env,
+    env: proc.env || process.env,
     stdio: 'inherit',
     windowsHide: false,
     shell: false,
