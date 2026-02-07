@@ -456,9 +456,15 @@ export const useStore = create<AppState>((set, get) => ({
           memory: clampPanelWidth('memory', memoryPanelWidth),
         },
       });
-      set((state) => ({
-        user: state.user ? { ...state.user, ui_prefs: updatedUser?.ui_prefs } : state.user,
-      }));
+      const nextUiPrefs = updatedUser?.ui_prefs || {};
+      const currentUiPrefs = get().user?.ui_prefs || {};
+      const hasUiPrefsChanged = JSON.stringify(nextUiPrefs) !== JSON.stringify(currentUiPrefs);
+
+      if (hasUiPrefsChanged) {
+        set((state) => ({
+          user: state.user ? { ...state.user, ui_prefs: nextUiPrefs } : state.user,
+        }));
+      }
     } catch {
       get().addNotification('warning', 'Unable to save panel width preferences');
     }

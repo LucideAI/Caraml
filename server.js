@@ -5,8 +5,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { spawn, execSync, execFileSync } from 'child_process';
+import { dirname, join, delimiter } from 'path';
+import { spawn, execFileSync } from 'child_process';
 import { writeFileSync, mkdirSync, readFileSync, rmSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 
@@ -499,41 +499,115 @@ app.post('/api/shared/:shareId/fork', authenticate, (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── Detect available OCaml tools ────────────────────────────────────────────
-function findTool(name) {
-  try {
-    // Load opam env vars
-    const opamEnv = {};
-    try {
-      const envStr = execSync('opam env 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
-      for (const line of envStr.split('\n')) {
-        const m = line.match(/^(\w+)='([^']*)'/);
-        if (m) opamEnv[m[1]] = m[2];
-      }
-    } catch {}
-    const env = { ...process.env, ...opamEnv };
-    const result = execSync(`which ${name} 2>/dev/null`, { encoding: 'utf8', timeout: 3000, env }).trim();
-    return result || null;
-  } catch { return null; }
-}
-
-function getOpamEnv() {
-  try {
-    const envStr = execSync('opam env 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
-    const opamEnv = {};
-    for (const line of envStr.split('\n')) {
-      const m = line.match(/^(\w+)='([^']*)'/);
-      if (m) opamEnv[m[1]] = m[2];
-    }
-    return { ...process.env, ...opamEnv };
-  } catch {
-    return process.env;
+function getPathKey(env) {
+  for (const key of Object.keys(env)) {
+    if (key.toLowerCase() === 'path') return key;
   }
+  return 'PATH';
 }
 
-const OPAM_ENV = getOpamEnv();
-const OCAML_PATH = findTool('ocaml');
-const OCAMLMERLIN_PATH = findTool('ocamlmerlin');
-const OCAMLFORMAT_PATH = findTool('ocamlformat');
+function normalizeMaybeQuotedPath(value) {
+  const trimmed = value.trim();
+  const quoted = trimmed.match(/^"(.*)"$/);
+  return quoted ? quoted[1] : trimmed;
+}
+
+function pathsEqual(a, b) {
+  if (process.platform === 'win32') return a.toLowerCase() === b.toLowerCase();
+  return a === b;
+}
+
+function buildToolEnv() {
+  const env = { ...process.env };
+  const pathKey = getPathKey(env);
+  const pathValue = env[pathKey] || '';
+  const pathEntries = pathValue.split(delimiter).map((entry) => entry.trim()).filter(Boolean);
+
+  try {
+    const opamBin = execFileSync('opam', ['var', 'bin'], {
+      encoding: 'utf8',
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+
+    if (opamBin) {
+      const normalizedOpamBin = normalizeMaybeQuotedPath(opamBin);
+      const alreadyInPath = pathEntries.some((entry) => pathsEqual(normalizeMaybeQuotedPath(entry), normalizedOpamBin));
+      if (!alreadyInPath) {
+        env[pathKey] = [normalizedOpamBin, ...pathEntries].join(delimiter);
+      }
+    }
+  } catch {
+    // opam is optional
+  }
+
+  return env;
+}
+
+function resolveOnPath(toolName, env) {
+  const pathKey = getPathKey(env);
+  const pathValue = env[pathKey];
+  if (!pathValue) return null;
+
+  const entries = pathValue.split(delimiter).map((entry) => normalizeMaybeQuotedPath(entry)).filter(Boolean);
+  const isWindows = process.platform === 'win32';
+
+  let candidateNames = [toolName];
+  if (isWindows && !/\.[^\\/]+$/.test(toolName)) {
+    const pathext = (env.PATHEXT || '.EXE;.CMD;.BAT;.COM')
+      .split(';')
+      .map((ext) => ext.trim())
+      .filter(Boolean);
+    candidateNames = [toolName, ...pathext.map((ext) => `${toolName}${ext}`)];
+  }
+
+  for (const dir of entries) {
+    for (const candidateName of candidateNames) {
+      const candidatePath = join(dir, candidateName);
+      if (existsSync(candidatePath)) {
+        return candidatePath;
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveTool(toolName, overrideEnvVar, env) {
+  const rawOverride = process.env[overrideEnvVar];
+  if (typeof rawOverride === 'string' && rawOverride.trim()) {
+    const overrideValue = normalizeMaybeQuotedPath(rawOverride);
+    if (existsSync(overrideValue)) {
+      return overrideValue;
+    }
+
+    const resolvedOverride = resolveOnPath(overrideValue, env);
+    if (resolvedOverride) {
+      return resolvedOverride;
+    }
+
+    console.warn(`  [tooling] ${overrideEnvVar} points to an unavailable executable: ${overrideValue}`);
+  }
+
+  return resolveOnPath(toolName, env);
+}
+
+const TOOL_ENV = buildToolEnv();
+const OCAML_PATH = resolveTool('ocaml', 'CARAML_OCAML_PATH', TOOL_ENV);
+const OCAMLMERLIN_PATH = resolveTool('ocamlmerlin', 'CARAML_OCAMLMERLIN_PATH', TOOL_ENV);
+const OCAMLFORMAT_PATH = resolveTool('ocamlformat', 'CARAML_OCAMLFORMAT_PATH', TOOL_ENV);
+const OCAML_VERSION = OCAML_PATH ? (() => {
+  try {
+    return execFileSync(OCAML_PATH, ['-version'], {
+      encoding: 'utf8',
+      timeout: 3000,
+      env: TOOL_ENV,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return null;
+  }
+})() : null;
 
 console.log('  OCaml toolchain:');
 console.log(`    ocaml:       ${OCAML_PATH || '(not found — fallback to browser interpreter)'}`);
@@ -545,7 +619,7 @@ console.log('');
 app.get('/api/capabilities', (req, res) => {
   res.json({
     ocaml: !!OCAML_PATH,
-    ocamlVersion: OCAML_PATH ? (() => { try { return execSync(`${OCAML_PATH} -version 2>&1`, { encoding: 'utf8', timeout: 3000, env: OPAM_ENV }).trim(); } catch { return null; } })() : null,
+    ocamlVersion: OCAML_VERSION,
     merlin: !!OCAMLMERLIN_PATH,
     ocamlformat: !!OCAMLFORMAT_PATH,
   });
@@ -577,7 +651,7 @@ app.post('/api/execute', (req, res) => {
   // Run via ocaml toplevel
   const child = spawn(OCAML_PATH, [tmpFile], {
     cwd: tmpDir,
-    env: OPAM_ENV,
+    env: TOOL_ENV,
     timeout: timeout,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -665,7 +739,7 @@ app.post('/api/toplevel', (req, res) => {
   // Run code through ocaml toplevel interactively
   // We pipe code to stdin and read the toplevel's output
   const child = spawn(OCAML_PATH, ['-noprompt', '-color', 'never'], {
-    env: OPAM_ENV,
+    env: TOOL_ENV,
     timeout: timeout,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -796,7 +870,7 @@ app.post('/api/format', (req, res) => {
       encoding: 'utf8',
       timeout: 5000,
       cwd: tmpDir,
-      env: OPAM_ENV,
+      env: TOOL_ENV,
     });
 
     rmSync(tmpDir, { recursive: true, force: true });
@@ -820,7 +894,7 @@ function runMerlin(command, code) {
       timeout: 5000,
       cwd: tmpDir,
       input: code,
-      env: OPAM_ENV,
+      env: TOOL_ENV,
     });
     rmSync(tmpDir, { recursive: true, force: true });
     return JSON.parse(result);
