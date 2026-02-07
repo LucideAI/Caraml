@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
 import { api } from '../services/api';
@@ -11,6 +11,13 @@ import { AuthModal } from '../components/AuthModal';
 import { ShareModal } from '../components/ShareModal';
 import { interpret } from '../interpreter';
 import { Loader2, X } from 'lucide-react';
+import {
+  computeAutoFileTreeWidth,
+  computeAutoMemoryPanelWidth,
+  EDITOR_MIN_WIDTH,
+  PANEL_LIMITS,
+  RESIZE_HANDLE_WIDTH,
+} from '../utils/panelSizing';
 
 export function IDEPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -21,9 +28,84 @@ export function IDEPage() {
     showFileTree, showConsole, showMemoryPanel,
     setExecutionResult, setIsRunning, isRunning,
     isDirty, saveProject, capabilities, loadCapabilities,
-    addNotification,
+    addNotification, memoryState,
+    fileTreeWidth, memoryPanelWidth, fileTreeWidthMode, memoryPanelWidthMode,
+    setFileTreeWidth, setMemoryPanelWidth, persistPanelWidths,
   } = useStore();
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const layoutRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<{ panel: 'fileTree' | 'memory'; startX: number; startWidth: number } | null>(null);
+  const fileNames = currentProject ? Object.keys(currentProject.files).sort() : [];
+  const fileNamesKey = fileNames.join('\u0000');
+
+  const getLayoutWidth = useCallback(() => {
+    return layoutRef.current?.clientWidth ?? window.innerWidth;
+  }, []);
+
+  const getMaxWidthForPanel = useCallback((panel: 'fileTree' | 'memory', totalWidth?: number) => {
+    const width = totalWidth ?? getLayoutWidth();
+    const visibleHandles = (showFileTree ? 1 : 0) + (showMemoryPanel ? 1 : 0);
+    const handleSpace = visibleHandles * RESIZE_HANDLE_WIDTH;
+
+    if (panel === 'fileTree') {
+      const occupiedRight = (showMemoryPanel ? memoryPanelWidth : 0) + EDITOR_MIN_WIDTH + handleSpace;
+      return Math.max(0, Math.min(PANEL_LIMITS.fileTree.max, width - occupiedRight));
+    }
+
+    const occupiedLeft = (showFileTree ? fileTreeWidth : 0) + EDITOR_MIN_WIDTH + handleSpace;
+    return Math.max(0, Math.min(PANEL_LIMITS.memory.max, width - occupiedLeft));
+  }, [fileTreeWidth, memoryPanelWidth, showFileTree, showMemoryPanel, getLayoutWidth]);
+
+  const startResize = useCallback((panel: 'fileTree' | 'memory') => (e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const startWidth = panel === 'fileTree' ? fileTreeWidth : memoryPanelWidth;
+    dragStateRef.current = { panel, startX: e.clientX, startWidth };
+
+    if (panel === 'fileTree') {
+      setFileTreeWidth(startWidth, 'manual');
+    } else {
+      setMemoryPanelWidth(startWidth, 'manual');
+    }
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dragState = dragStateRef.current;
+      if (!dragState) return;
+
+      if (dragState.panel === 'fileTree') {
+        const maxWidth = getMaxWidthForPanel('fileTree');
+        const minWidth = Math.min(PANEL_LIMITS.fileTree.min, maxWidth);
+        const nextWidth = dragState.startWidth + (event.clientX - dragState.startX);
+        setFileTreeWidth(Math.min(maxWidth, Math.max(minWidth, nextWidth)));
+      } else {
+        const maxWidth = getMaxWidthForPanel('memory');
+        const minWidth = Math.min(PANEL_LIMITS.memory.min, maxWidth);
+        const nextWidth = dragState.startWidth - (event.clientX - dragState.startX);
+        setMemoryPanelWidth(Math.min(maxWidth, Math.max(minWidth, nextWidth)));
+      }
+    };
+
+    const handlePointerUp = () => {
+      dragStateRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      void persistPanelWidths();
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+  }, [
+    fileTreeWidth,
+    memoryPanelWidth,
+    setFileTreeWidth,
+    setMemoryPanelWidth,
+    getMaxWidthForPanel,
+    persistPanelWidths,
+  ]);
 
   // Load project + capabilities
   useEffect(() => {
@@ -50,6 +132,49 @@ export function IDEPage() {
       if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     };
   }, [isDirty, user, saveProject]);
+
+  useEffect(() => {
+    if (!showFileTree || fileTreeWidthMode !== 'auto') return;
+    setFileTreeWidth(computeAutoFileTreeWidth(fileNames), 'auto');
+  }, [showFileTree, fileTreeWidthMode, fileNamesKey, setFileTreeWidth]);
+
+  useEffect(() => {
+    if (!showMemoryPanel || memoryPanelWidthMode !== 'auto') return;
+    setMemoryPanelWidth(computeAutoMemoryPanelWidth(memoryState), 'auto');
+  }, [showMemoryPanel, memoryPanelWidthMode, memoryState, setMemoryPanelWidth]);
+
+  useEffect(() => {
+    const clampPanelsToViewport = () => {
+      const layoutWidth = getLayoutWidth();
+      if (showFileTree) {
+        const maxWidth = getMaxWidthForPanel('fileTree', layoutWidth);
+        const minWidth = Math.min(PANEL_LIMITS.fileTree.min, maxWidth);
+        if (fileTreeWidth > maxWidth || fileTreeWidth < minWidth) {
+          setFileTreeWidth(Math.max(minWidth, Math.min(maxWidth, fileTreeWidth)));
+        }
+      }
+      if (showMemoryPanel) {
+        const maxWidth = getMaxWidthForPanel('memory', layoutWidth);
+        const minWidth = Math.min(PANEL_LIMITS.memory.min, maxWidth);
+        if (memoryPanelWidth > maxWidth || memoryPanelWidth < minWidth) {
+          setMemoryPanelWidth(Math.max(minWidth, Math.min(maxWidth, memoryPanelWidth)));
+        }
+      }
+    };
+
+    clampPanelsToViewport();
+    window.addEventListener('resize', clampPanelsToViewport);
+    return () => window.removeEventListener('resize', clampPanelsToViewport);
+  }, [
+    showFileTree,
+    showMemoryPanel,
+    fileTreeWidth,
+    memoryPanelWidth,
+    getLayoutWidth,
+    getMaxWidthForPanel,
+    setFileTreeWidth,
+    setMemoryPanelWidth,
+  ]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -199,12 +324,18 @@ export function IDEPage() {
     <div className="h-screen flex flex-col bg-ide-bg overflow-hidden">
       <Header mode="ide" onRun={handleRun} onFormat={handleFormat} />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div ref={layoutRef} className="flex-1 flex overflow-hidden">
         {/* File Tree Sidebar */}
         {showFileTree && (
-          <div className="w-52 shrink-0 border-r border-ide-border">
-            <FileTree />
-          </div>
+          <>
+            <div style={{ width: `${fileTreeWidth}px` }} className="shrink-0 border-r border-ide-border overflow-hidden">
+              <FileTree />
+            </div>
+            <div
+              className="resize-handle w-1.5 shrink-0 bg-ide-border/70 hover:bg-brand-500/40 transition-colors touch-none"
+              onPointerDown={startResize('fileTree')}
+            />
+          </>
         )}
 
         {/* Main Editor + Console Area */}
@@ -249,9 +380,15 @@ export function IDEPage() {
 
         {/* Memory Viewer Sidebar */}
         {showMemoryPanel && (
-          <div className="w-72 shrink-0 border-l border-ide-border overflow-hidden">
-            <MemoryViewer />
-          </div>
+          <>
+            <div
+              className="resize-handle w-1.5 shrink-0 bg-ide-border/70 hover:bg-brand-500/40 transition-colors touch-none"
+              onPointerDown={startResize('memory')}
+            />
+            <div style={{ width: `${memoryPanelWidth}px` }} className="shrink-0 border-l border-ide-border overflow-hidden">
+              <MemoryViewer />
+            </div>
+          </>
         )}
       </div>
 

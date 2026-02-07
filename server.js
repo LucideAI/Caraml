@@ -29,6 +29,7 @@ db.exec(`
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     avatar_color TEXT DEFAULT '#06b6d4',
+    ui_prefs TEXT NOT NULL DEFAULT '{}',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -49,6 +50,75 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
   CREATE INDEX IF NOT EXISTS idx_projects_share_id ON projects(share_id);
 `);
+
+// Backward-compatible migration for existing databases.
+const userColumns = db.prepare('PRAGMA table_info(users)').all();
+if (!userColumns.some((column) => column.name === 'ui_prefs')) {
+  db.exec(`ALTER TABLE users ADD COLUMN ui_prefs TEXT NOT NULL DEFAULT '{}'`);
+}
+
+const PANEL_WIDTH_LIMITS = {
+  fileTree: { min: 180, max: 420 },
+  memory: { min: 300, max: 760 },
+};
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseUiPrefs(rawPrefs) {
+  if (!rawPrefs) return {};
+  try {
+    const parsed = JSON.parse(rawPrefs);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function sanitizePanelWidths(panelWidths) {
+  const next = {};
+  if (!panelWidths || typeof panelWidths !== 'object') return next;
+
+  if (Number.isFinite(panelWidths.fileTree)) {
+    next.fileTree = Math.round(
+      clamp(panelWidths.fileTree, PANEL_WIDTH_LIMITS.fileTree.min, PANEL_WIDTH_LIMITS.fileTree.max)
+    );
+  }
+  if (Number.isFinite(panelWidths.memory)) {
+    next.memory = Math.round(
+      clamp(panelWidths.memory, PANEL_WIDTH_LIMITS.memory.min, PANEL_WIDTH_LIMITS.memory.max)
+    );
+  }
+
+  return next;
+}
+
+function mergeUiPrefs(existingPrefs, incomingPrefs) {
+  const current = existingPrefs && typeof existingPrefs === 'object' ? existingPrefs : {};
+  const incoming = incomingPrefs && typeof incomingPrefs === 'object' ? incomingPrefs : {};
+  const merged = { ...current };
+
+  if (incoming.panelWidths !== undefined) {
+    merged.panelWidths = {
+      ...(current.panelWidths && typeof current.panelWidths === 'object' ? current.panelWidths : {}),
+      ...sanitizePanelWidths(incoming.panelWidths),
+    };
+  }
+
+  return merged;
+}
+
+function serializeUser(userRow) {
+  return {
+    id: userRow.id,
+    username: userRow.username,
+    email: userRow.email,
+    avatar_color: userRow.avatar_color,
+    created_at: userRow.created_at,
+    ui_prefs: parseUiPrefs(userRow.ui_prefs),
+  };
+}
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({ origin: true, credentials: true }));
@@ -127,8 +197,11 @@ app.post('/api/auth/register', (req, res) => {
     db.prepare('INSERT INTO projects (id, user_id, name, description, files) VALUES (?, ?, ?, ?, ?)')
       .run(projectId, id, 'My First Project', 'Getting started with OCaml', defaultFiles);
 
+    const createdUser = db.prepare(
+      'SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?'
+    ).get(id);
     const token = jwt.sign({ id, username, email, avatar_color }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id, username, email, avatar_color } });
+    res.json({ token, user: serializeUser(createdUser) });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -157,7 +230,7 @@ app.post('/api/auth/login', (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, avatar_color: user.avatar_color } });
+    res.json({ token, user: serializeUser(user) });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -165,9 +238,33 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.get('/api/auth/me', authenticate, (req, res) => {
-  const user = db.prepare('SELECT id, username, email, avatar_color, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ user });
+  res.json({ user: serializeUser(user) });
+});
+
+app.put('/api/auth/preferences', authenticate, (req, res) => {
+  try {
+    const user = db.prepare(
+      'SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?'
+    ).get(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const currentPrefs = parseUiPrefs(user.ui_prefs);
+    const mergedPrefs = mergeUiPrefs(currentPrefs, req.body);
+
+    db.prepare('UPDATE users SET ui_prefs = ? WHERE id = ?')
+      .run(JSON.stringify(mergedPrefs), req.user.id);
+
+    const updatedUser = db.prepare(
+      'SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?'
+    ).get(req.user.id);
+
+    res.json({ user: serializeUser(updatedUser) });
+  } catch (err) {
+    console.error('Update preferences error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ── Project Routes ──────────────────────────────────────────────────────────
