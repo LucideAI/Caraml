@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"node server.js\" \"vite --port 5173\"",
+    "dev": "node scripts/dev.mjs",
     "dev:client": "vite --port 5173",
     "dev:server": "node server.js",
     "build": "vite build",
@@ -15,7 +15,6 @@
     "@monaco-editor/react": "^4.6.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.0.0",
-    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",

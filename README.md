@@ -58,7 +58,7 @@ IDE OCaml web complet (frontend React + backend Express) avec execution de code,
   - `ocamlformat`
   - `opam`
 
-Important: la detection des outils OCaml cote serveur utilise `which` + `opam env`. Le setup est donc surtout prevu pour Linux/macOS ou WSL.
+Important: la detection des outils OCaml cote serveur est cross-platform (Windows, macOS, Linux). Si les outils ne sont pas installes, l'application reste utilisable sans erreur systeme.
 
 ## Installation
 
@@ -79,6 +79,7 @@ npm run dev
 - Frontend: `http://localhost:5173`
 - API backend: `http://localhost:3001`
 - Le frontend proxy automatiquement `/api` vers le backend.
+- Si `ocaml`, `ocamlmerlin` ou `ocamlformat` ne sont pas disponibles, le serveur bascule proprement en mode degrade (fallback navigateur + fonctions optionnelles desactivees).
 
 ### Lancer seulement le frontend
 
@@ -109,17 +110,28 @@ Note: `npm run start` sert `dist/` via Express. Pensez a lancer `npm run build` 
 ## Variables d'environnement
 
 - `JWT_SECRET` (optionnelle, mais fortement recommandee en non-local)
+- `CARAML_OCAML_PATH` (optionnelle): chemin explicite vers le binaire `ocaml`
+- `CARAML_OCAMLMERLIN_PATH` (optionnelle): chemin explicite vers le binaire `ocamlmerlin`
+- `CARAML_OCAMLFORMAT_PATH` (optionnelle): chemin explicite vers le binaire `ocamlformat`
 
-Exemple:
+Exemple Bash:
 
 ```bash
-JWT_SECRET="change-me" npm run dev:server
+JWT_SECRET="change-me" \
+CARAML_OCAML_PATH="/usr/local/bin/ocaml" \
+CARAML_OCAMLMERLIN_PATH="/usr/local/bin/ocamlmerlin" \
+CARAML_OCAMLFORMAT_PATH="/usr/local/bin/ocamlformat" \
+npm run dev:server
 ```
 
 PowerShell:
 
 ```powershell
-$env:JWT_SECRET="change-me"; npm run dev:server
+$env:JWT_SECRET="change-me"
+$env:CARAML_OCAML_PATH="C:\\Tools\\OCaml\\bin\\ocaml.exe"
+$env:CARAML_OCAMLMERLIN_PATH="C:\\Tools\\OCaml\\bin\\ocamlmerlin.exe"
+$env:CARAML_OCAMLFORMAT_PATH="C:\\Tools\\OCaml\\bin\\ocamlformat.exe"
+npm run dev:server
 ```
 
 Remarque: le port backend est fixe dans `server.js` (`3001`).
@@ -204,7 +216,7 @@ Base de donnees locale SQLite:
 
 ## Notes importantes
 
-- Si `ocaml` n'est pas detecte, l'application reste utilisable via l'interpreteur navigateur (fallback).
+- Si `ocaml` n'est pas detecte, l'application reste utilisable via l'interpreteur navigateur (fallback), sans erreur systeme parasite.
 - Si `ocamlmerlin` n'est pas detecte, la completion locale Monaco reste disponible.
 - Si `ocamlformat` n'est pas detecte, le bouton Format est desactive.
 - En l'etat, le secret JWT par defaut dans `server.js` doit etre remplace pour un usage reel.

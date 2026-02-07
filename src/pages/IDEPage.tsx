@@ -32,6 +32,8 @@ export function IDEPage() {
     fileTreeWidth, memoryPanelWidth, fileTreeWidthMode, memoryPanelWidthMode,
     setFileTreeWidth, setMemoryPanelWidth, persistPanelWidths,
   } = useStore();
+  const authUserId = user?.id ?? null;
+  const currentProjectId = currentProject?.id ?? null;
   const autoSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const layoutRef = useRef<HTMLDivElement | null>(null);
   const dragStateRef = useRef<{ panel: 'fileTree' | 'memory'; startX: number; startWidth: number } | null>(null);
@@ -113,12 +115,14 @@ export function IDEPage() {
   }, [loadCapabilities]);
 
   useEffect(() => {
-    if (projectId && user) {
-      loadProject(projectId);
-    } else if (!user) {
+    if (projectId && authUserId) {
+      if (currentProjectId !== projectId) {
+        loadProject(projectId);
+      }
+    } else if (!authUserId) {
       useStore.getState().setShowAuthModal(true);
     }
-  }, [projectId, user, loadProject]);
+  }, [projectId, authUserId, currentProjectId, loadProject]);
 
   // Auto-save
   useEffect(() => {
@@ -284,7 +288,7 @@ export function IDEPage() {
     }
   }, [currentProject, activeFile, capabilities, addNotification]);
 
-  if (isProjectLoading) {
+  if (isProjectLoading && (!currentProject || currentProject.id !== projectId)) {
     return (
       <div className="h-screen flex items-center justify-center bg-ide-bg">
         <div className="flex flex-col items-center gap-4">
