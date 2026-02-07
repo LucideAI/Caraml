@@ -147,15 +147,15 @@ export function DashboardPage() {
               <pre className="font-mono text-sm text-slate-400 leading-relaxed">
                 <code>{`(* Pattern matching & recursion *)
 let rec fibonacci = function
-  | 0 -> 0
-  | 1 -> 1
-  | n -> fibonacci (n - 1) + fibonacci (n - 2)
+    | 0 -> 0
+    | 1 -> 1
+    | n -> fibonacci (n - 1) + fibonacci (n - 2)
 
 let () =
-  List.init 10 fibonacci
-  |> List.iter (fun n ->
-    Printf.printf "%d " n);
-  print_newline ()`}</code>
+    List.init 10 fibonacci
+    |> List.iter (fun n ->
+        Printf.printf "%d " n);
+    print_newline ()`}</code>
               </pre>
             </div>
           </div>
