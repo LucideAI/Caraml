@@ -73,17 +73,44 @@ npm install
 On ne versionne pas les binaires `ocaml` / `ocamlmerlin` / `ocamlformat` dans Git (taille, portabilite, maintenance).
 A la place, le projet fournit un script d'installation reproductible via `opam`:
 
+Windows (installation opam + git):
+
+```powershell
+winget install Git.Git OCaml.opam
+```
+
 ```bash
 npm run setup:ocaml
 ```
 
 Le script cree (ou reutilise) un switch local `./_opam` et installe:
 
-- `ocaml-base-compiler.5.6.0`
+- `ocaml-base-compiler.5.4.0`
 - `merlin.5.6.1-504`
 - `ocamlformat.0.28.1`
 
+Si `opam` est present mais pas initialise, le script execute automatiquement `opam init` (sur Windows avec `--cygwin-internal-install` pour eviter la question interactive).
+Pendant les etapes longues (compilation OCaml), le script affiche un heartbeat periodique `still running (...)` pour indiquer que l'installation continue.
+
 Ensuite, `npm run dev` detecte automatiquement ces outils.
+`npm run dev` lance aussi un auto-bootstrap (`ensure:ocaml`) au demarrage:
+
+- si la toolchain est absente et `opam` disponible, il lance automatiquement `setup:ocaml`;
+- sur Windows, si `opam` est absent, il tente une installation via `winget`, puis via le script officiel opam (best-effort);
+- en cas d'echec, l'application demarre en mode fallback navigateur.
+
+Pour desactiver l'auto-bootstrap:
+
+```bash
+CARAML_SKIP_OCAML_AUTO_SETUP=1 npm run dev
+```
+
+PowerShell:
+
+```powershell
+$env:CARAML_SKIP_OCAML_AUTO_SETUP="1"; npm run dev
+```
+
 Si `opam` n'est pas encore installe: https://opam.ocaml.org/doc/Install.html
 
 ## Lancer le projet

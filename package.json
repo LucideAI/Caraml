@@ -7,6 +7,7 @@
     "dev": "node scripts/dev.mjs",
     "dev:client": "vite --port 5173",
     "dev:server": "node server.js",
+    "ensure:ocaml": "node scripts/ensure-ocaml.mjs",
     "setup:ocaml": "node scripts/setup-ocaml.mjs",
     "build": "vite build",
     "preview": "vite preview",
