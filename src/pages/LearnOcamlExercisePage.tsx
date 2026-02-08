@@ -13,6 +13,14 @@ import {
   PanelBottomClose, PanelBottomOpen,
 } from 'lucide-react';
 
+function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException) return error.name === 'AbortError';
+  if (typeof error === 'object' && error !== null && 'name' in error) {
+    return (error as { name?: string }).name === 'AbortError';
+  }
+  return false;
+}
+
 export function LearnOcamlExercisePage() {
   const params = useParams();
   // Exercise IDs contain slashes (e.g. "tp1/lists"), so we use wildcard route
@@ -34,6 +42,9 @@ export function LearnOcamlExercisePage() {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const autoSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSetInitialCode = useRef(false);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runSeqRef = useRef(0);
 
   const exercise = learnOcaml.currentExercise;
   const gradeResult = learnOcaml.lastGradeResult;
@@ -69,30 +80,21 @@ export function LearnOcamlExercisePage() {
     };
   }, [code]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        handleRun();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        handleSync(true);
-      }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'G') {
-        e.preventDefault();
-        handleGrade();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [code, decodedId, isRunning]);
-
   // ── Run Code ───────────────────────────────────────────────────────────
 
   const handleRun = useCallback(async () => {
-    if (!code || isRunning) return;
+    if (!code) return;
+
+    if (runAbortRef.current) {
+      runAbortRef.current.abort();
+      runAbortRef.current = null;
+    }
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+
+    const runSeq = ++runSeqRef.current;
     setIsRunning(true);
 
     // Prepend prelude if available
@@ -100,9 +102,48 @@ export function LearnOcamlExercisePage() {
       ? `${exercise.prelude}\n\n(* === Your code === *)\n${code}`
       : code;
 
+    let controller: AbortController | null = null;
+    const finalizeIfCurrent = () => {
+      if (runSeqRef.current === runSeq) {
+        setIsRunning(false);
+      }
+    };
+    const scheduleFallback = () => {
+      fallbackTimerRef.current = setTimeout(() => {
+        if (runSeqRef.current !== runSeq) return;
+        try {
+          const result = interpret(code);
+          setExecutionResult(result);
+        } catch (err: any) {
+          if (runSeqRef.current !== runSeq) return;
+          setExecutionResult({
+            output: '',
+            values: [],
+            errors: [{ line: 0, column: 0, message: err.message || 'Unknown error' }],
+            memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
+            executionTimeMs: 0,
+          });
+        } finally {
+          if (fallbackTimerRef.current) {
+            clearTimeout(fallbackTimerRef.current);
+            fallbackTimerRef.current = null;
+          }
+          finalizeIfCurrent();
+        }
+      }, 10);
+    };
+
     try {
       if (capabilities.ocaml) {
-        const toplevelResult = await api.runToplevel(fullCode);
+        controller = new AbortController();
+        runAbortRef.current = controller;
+        const toplevelResult = await api.runToplevel(fullCode, controller.signal);
+
+        if (runAbortRef.current === controller) {
+          runAbortRef.current = null;
+        }
+        if (runSeqRef.current !== runSeq) return;
+
         if (toplevelResult.backend) {
           let memoryState: import('../types').MemoryState = { stack: [], heap: [], environment: [], typeDefinitions: [] };
           try {
@@ -117,44 +158,24 @@ export function LearnOcamlExercisePage() {
             memoryState,
             executionTimeMs: toplevelResult.executionTimeMs || 0,
           });
-          setIsRunning(false);
+          finalizeIfCurrent();
           return;
         }
       }
 
-      // Fallback: browser interpreter
-      setTimeout(() => {
-        try {
-          const result = interpret(code);
-          setExecutionResult(result);
-        } catch (err: any) {
-          setExecutionResult({
-            output: '',
-            values: [],
-            errors: [{ line: 0, column: 0, message: err.message || 'Unknown error' }],
-            memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
-            executionTimeMs: 0,
-          });
-        } finally {
-          setIsRunning(false);
-        }
-      }, 10);
-    } catch {
-      try {
-        const result = interpret(code);
-        setExecutionResult(result);
-      } catch (localErr: any) {
-        setExecutionResult({
-          output: '',
-          values: [],
-          errors: [{ line: 0, column: 0, message: localErr.message || 'Unknown error' }],
-          memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
-          executionTimeMs: 0,
-        });
+      if (runSeqRef.current !== runSeq) return;
+      scheduleFallback();
+    } catch (err: unknown) {
+      if (runAbortRef.current === controller) {
+        runAbortRef.current = null;
       }
-      setIsRunning(false);
+      if (isAbortError(err)) {
+        return;
+      }
+      if (runSeqRef.current !== runSeq) return;
+      scheduleFallback();
     }
-  }, [code, isRunning, capabilities, exercise]);
+  }, [code, capabilities, exercise, setExecutionResult, setIsRunning]);
 
   // ── Sync to Learn OCaml ────────────────────────────────────────────────
 
@@ -185,6 +206,49 @@ export function LearnOcamlExercisePage() {
       // Error handled in store
     }
   }, [decodedId, code, learnOcaml.isGrading]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
+
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      const insideMonaco = !!target?.closest('.monaco-editor');
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (insideMonaco) return;
+        e.preventDefault();
+        void handleRun();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        void handleSync(true);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'G') {
+        e.preventDefault();
+        void handleGrade();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleRun, handleSync, handleGrade]);
+
+  useEffect(() => {
+    return () => {
+      runSeqRef.current += 1;
+      if (runAbortRef.current) {
+        runAbortRef.current.abort();
+        runAbortRef.current = null;
+      }
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      setIsRunning(false);
+    };
+  }, [setIsRunning]);
 
   // ── Loading State ──────────────────────────────────────────────────────
 
@@ -462,6 +526,12 @@ function LearnOcamlEditor({
   fontSize: number;
   onRun: () => void;
 }) {
+  const onRunRef = useRef(onRun);
+
+  useEffect(() => {
+    onRunRef.current = onRun;
+  }, [onRun]);
+
   const handleEditorBeforeMount = (monaco: any) => {
     registerOcamlLanguage(monaco);
   };
@@ -472,7 +542,7 @@ function LearnOcamlEditor({
       id: 'run-code',
       label: 'Run Code',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-      run: () => onRun(),
+      run: () => onRunRef.current(),
     });
   };
 

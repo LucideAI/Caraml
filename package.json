@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"node server.js\" \"vite --port 5173\"",
+    "dev": "node scripts/dev.mjs",
+    "dev:no-ocaml": "node scripts/dev.mjs --skip-ocaml",
     "dev:client": "vite --port 5173",
     "dev:server": "node server.js",
+    "ensure:ocaml": "node scripts/ensure-ocaml.mjs",
+    "setup:ocaml": "node scripts/setup-ocaml.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server.js"
@@ -15,7 +18,6 @@
     "@monaco-editor/react": "^4.6.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.0.0",
-    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
