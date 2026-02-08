@@ -266,7 +266,7 @@ export function SharedPage() {
       <div className="h-screen flex items-center justify-center bg-ide-bg">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-400" size={32} />
-          <p className="text-slate-400">Loading shared project...</p>
+          <p className="text-t-muted">Loading shared project...</p>
         </div>
       </div>
     );
@@ -278,7 +278,7 @@ export function SharedPage() {
         <Header mode="shared" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-lg text-slate-400 mb-4">{error || 'Project not found'}</p>
+            <p className="text-lg text-t-muted mb-4">{error || 'Project not found'}</p>
             <button onClick={() => navigate('/')} className="btn-primary">
               Go Home
             </button>
@@ -297,13 +297,13 @@ export function SharedPage() {
             <span className="text-xl">🐫</span>
             <span className="font-bold text-base text-gradient hidden sm:block">Caraml</span>
           </div>
-          <span className="text-slate-600">/</span>
-          <span className="text-sm font-medium text-slate-300">{currentProject.name}</span>
+          <span className="text-t-ghost">/</span>
+          <span className="text-sm font-medium text-t-secondary">{currentProject.name}</span>
           <span className="badge-info text-[10px]">Shared</span>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <div className="flex items-center gap-1.5 text-xs text-t-faint">
             <UserIcon size={12} />
             <span>by {authorName}</span>
           </div>

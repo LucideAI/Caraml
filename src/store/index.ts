@@ -32,7 +32,33 @@ function clampRuntimePanelWidth(kind: 'fileTree' | 'memory', width: number, fall
   return Math.round(Math.min(PANEL_LIMITS[kind].max, Math.max(0, width)));
 }
 
+type Theme = 'dark' | 'light';
+
+function getStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem('caraml-theme');
+    if (stored === 'light' || stored === 'dark') return stored;
+  } catch {}
+  return 'dark';
+}
+
+function applyThemeToDocument(theme: Theme) {
+  const root = document.documentElement;
+  if (theme === 'dark') {
+    root.classList.add('dark');
+    root.classList.remove('light');
+  } else {
+    root.classList.add('light');
+    root.classList.remove('dark');
+  }
+}
+
 interface AppState {
+  // Theme
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleTheme: () => void;
+
   // Capabilities
   capabilities: Capabilities;
   loadCapabilities: () => Promise<void>;
@@ -137,6 +163,22 @@ interface AppState {
 }
 
 export const useStore = create<AppState>((set, get) => ({
+  // ── Theme ──────────────────────────────────────────────────────────────
+  theme: (() => {
+    const t = getStoredTheme();
+    applyThemeToDocument(t);
+    return t;
+  })(),
+  setTheme: (theme) => {
+    applyThemeToDocument(theme);
+    localStorage.setItem('caraml-theme', theme);
+    set({ theme });
+  },
+  toggleTheme: () => {
+    const next = get().theme === 'dark' ? 'light' : 'dark';
+    get().setTheme(next);
+  },
+
   // ── Capabilities ────────────────────────────────────────────────────────
   capabilities: { ocaml: false, ocamlVersion: null, merlin: false, ocamlformat: false },
   loadCapabilities: async () => {

@@ -770,7 +770,7 @@ app.post('/api/toplevel', (req, res) => {
     // Clean stdout: remove version header
     let fullOutput = stdout
       .replace(/^OCaml version.*\n/m, '')
-      .replace(/^Enter "#help;;".*\n/m, '');
+      .replace(/^Enter #help;;.*\n?/m, '');
 
     // Parse toplevel output to extract val declarations
     const values = [];
@@ -820,7 +820,7 @@ app.post('/api/toplevel', (req, res) => {
     // Clean stdout: remove version header, prompts, and val declarations to get program output
     let cleanedOutput = stdout
       .replace(/^OCaml version.*\n/m, '')
-      .replace(/^Enter "#help;;".*\n/m, '')
+      .replace(/^Enter #help;;.*\n?/m, '')
       .replace(/\n+$/g, '\n');
 
     // Extract stdout output (text printed by the program, not val declarations)

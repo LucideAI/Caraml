@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import {
   ArrowLeft, Save, Share2, Play, Loader2, Settings, LogOut, User, FolderOpen,
   PanelLeftClose, PanelLeftOpen, PanelBottomClose, PanelBottomOpen, BrainCircuit,
-  Keyboard, AlignLeft, Server, Cpu, GraduationCap,
+  Keyboard, AlignLeft, Server, Cpu, GraduationCap, Sun, Moon,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -23,6 +23,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
     setShowAuthModal, setShowShareModal, currentProject,
     editorFontSize, setEditorFontSize,
     capabilities, learnOcaml,
+    theme, toggleTheme,
   } = useStore();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -41,6 +42,12 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
 
   return (
     <header className="h-12 flex items-center justify-between px-3 bg-ide-sidebar border-b border-ide-border shrink-0 z-40">
+      {/* Theme toggle (always visible) */}
+      {mode === 'dashboard' && (
+        <button onClick={toggleTheme} className="btn-icon" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+      )}
       {/* Left side */}
       <div className="flex items-center gap-2">
         {mode === 'ide' || mode === 'shared' ? (
@@ -60,8 +67,8 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
 
         {mode === 'ide' && (
           <>
-            <span className="text-slate-600 mx-1">/</span>
-            <span className="text-sm font-medium text-slate-300 truncate max-w-[200px]">
+            <span className="text-t-ghost mx-1">/</span>
+            <span className="text-sm font-medium text-t-secondary truncate max-w-[200px]">
               {projectName || currentProject?.name || 'Untitled'}
             </span>
             {isDirty && <span className="w-2 h-2 rounded-full bg-amber-500" title="Unsaved changes" />}
@@ -110,7 +117,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
       {/* Right side */}
       <div className="flex items-center gap-2">
         {lastSaved && mode === 'ide' && (
-          <span className="text-xs text-slate-500 hidden md:block">
+          <span className="text-xs text-t-faint hidden md:block">
             Saved {new Date(lastSaved).toLocaleTimeString()}
           </span>
         )}
@@ -121,50 +128,61 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
               <Settings size={16} />
             </button>
             {showSettings && (
-              <div className="absolute right-0 top-full mt-1 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 z-50 animate-fade-in">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Editor Settings</h4>
+              <div className="absolute right-0 top-full mt-1 w-64 border rounded-lg shadow-xl p-3 z-50 animate-fade-in" style={{ backgroundColor: 'var(--ide-panel)', borderColor: 'var(--surface-2)' }}>
+                <h4 className="text-xs font-semibold text-t-muted uppercase tracking-wider mb-3">Editor Settings</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm text-slate-300">Font Size</label>
+                    <label className="text-sm text-t-secondary">Theme</label>
+                    <button
+                      onClick={toggleTheme}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-t-secondary transition-colors"
+                      style={{ backgroundColor: 'var(--surface-2)' }}
+                    >
+                      {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+                      {theme === 'dark' ? 'Dark' : 'Light'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-t-secondary">Font Size</label>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setEditorFontSize(Math.max(10, editorFontSize - 1))}
-                        className="btn-xs bg-slate-700 hover:bg-slate-600"
+                        className="btn-xs" style={{ backgroundColor: 'var(--surface-2)' }}
                       >-</button>
-                      <span className="text-sm text-slate-200 w-8 text-center">{editorFontSize}</span>
+                      <span className="text-sm text-t-secondary w-8 text-center">{editorFontSize}</span>
                       <button
                         onClick={() => setEditorFontSize(Math.min(24, editorFontSize + 1))}
-                        className="btn-xs bg-slate-700 hover:bg-slate-600"
+                        className="btn-xs" style={{ backgroundColor: 'var(--surface-2)' }}
                       >+</button>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-slate-700 space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="pt-2 border-t border-ide-border space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-t-faint">
                       <Keyboard size={12} />
                       <span>Ctrl+Enter = Run | Ctrl+S = Save</span>
                     </div>
                     {capabilities.ocamlformat && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <div className="flex items-center gap-2 text-xs text-t-faint">
                         <Keyboard size={12} />
                         <span>Ctrl+Shift+F = Format</span>
                       </div>
                     )}
-                    <div className="pt-2 border-t border-slate-700">
-                      <div className="text-[10px] uppercase tracking-wider text-slate-600 mb-1.5">Backend</div>
+                    <div className="pt-2 border-t border-ide-border">
+                      <div className="text-[10px] uppercase tracking-wider text-t-ghost mb-1.5">Backend</div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-xs">
-                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocaml ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className={capabilities.ocaml ? 'text-slate-300' : 'text-slate-600'}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocaml ? 'bg-emerald-400' : 'bg-surface-3'}`} />
+                          <span className={capabilities.ocaml ? 'text-t-secondary' : 'text-t-ghost'}>
                             {capabilities.ocaml ? `OCaml ${capabilities.ocamlVersion?.match(/\d+\.\d+\.\d+/)?.[0] || ''}` : 'OCaml (browser only)'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs">
-                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.merlin ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className={capabilities.merlin ? 'text-slate-300' : 'text-slate-600'}>Merlin</span>
+                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.merlin ? 'bg-emerald-400' : 'bg-surface-3'}`} />
+                          <span className={capabilities.merlin ? 'text-t-secondary' : 'text-t-ghost'}>Merlin</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs">
-                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocamlformat ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className={capabilities.ocamlformat ? 'text-slate-300' : 'text-slate-600'}>ocamlformat</span>
+                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocamlformat ? 'bg-emerald-400' : 'bg-surface-3'}`} />
+                          <span className={capabilities.ocamlformat ? 'text-t-secondary' : 'text-t-ghost'}>ocamlformat</span>
                         </div>
                       </div>
                     </div>
@@ -191,7 +209,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors"
+              className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-ide-hover transition-colors"
             >
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs"
@@ -199,24 +217,24 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
               >
                 {user.username[0].toUpperCase()}
               </div>
-              <span className="text-sm text-slate-300 hidden sm:block">{user.username}</span>
+              <span className="text-sm text-t-secondary hidden sm:block">{user.username}</span>
             </button>
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 animate-fade-in overflow-hidden">
-                <div className="px-3 py-2 border-b border-slate-700">
-                  <p className="text-sm font-medium text-slate-200">{user.username}</p>
-                  <p className="text-xs text-slate-500">{user.email}</p>
+              <div className="absolute right-0 top-full mt-1 w-48 border rounded-lg shadow-xl z-50 animate-fade-in overflow-hidden" style={{ backgroundColor: 'var(--ide-panel)', borderColor: 'var(--surface-2)' }}>
+                <div className="px-3 py-2 border-b border-ide-border">
+                  <p className="text-sm font-medium text-t-primary">{user.username}</p>
+                  <p className="text-xs text-t-faint">{user.email}</p>
                 </div>
                 <button
                   onClick={() => { navigate('/'); setShowUserMenu(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-t-secondary hover:bg-ide-hover transition-colors"
                 >
                   <FolderOpen size={14} />
                   My Projects
                 </button>
                 <button
                   onClick={() => { logout(); setShowUserMenu(false); navigate('/'); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-rose-400 hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-rose-400 hover:bg-ide-hover transition-colors"
                 >
                   <LogOut size={14} />
                   Sign Out

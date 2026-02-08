@@ -287,7 +287,7 @@ export function registerOcamlLanguage(monaco: any) {
     triggerCharacters: ['.'],
   });
 
-  // Define OCaml theme
+  // Define OCaml dark theme
   monaco.editor.defineTheme('caraml-dark', {
     base: 'vs-dark',
     inherit: true,
@@ -332,6 +332,52 @@ export function registerOcamlLanguage(monaco: any) {
       'minimap.background': '#0a0e1a',
     },
   });
+
+  // Define OCaml light theme
+  monaco.editor.defineTheme('caraml-light', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: '7c3aed', fontStyle: 'bold' },
+      { token: 'type', foreground: '0891b2' },
+      { token: 'type.identifier', foreground: 'b45309' },
+      { token: 'identifier', foreground: '334155' },
+      { token: 'number', foreground: 'c2410c' },
+      { token: 'number.float', foreground: 'c2410c' },
+      { token: 'number.hex', foreground: 'c2410c' },
+      { token: 'string', foreground: '16a34a' },
+      { token: 'string.char', foreground: '16a34a' },
+      { token: 'string.escape', foreground: '0891b2' },
+      { token: 'comment', foreground: '94a3b8', fontStyle: 'italic' },
+      { token: 'operator', foreground: '0891b2' },
+      { token: 'delimiter', foreground: '475569' },
+      { token: '', foreground: '334155' },
+    ],
+    colors: {
+      'editor.background': '#ffffff',
+      'editor.foreground': '#334155',
+      'editor.lineHighlightBackground': '#f1f5f920',
+      'editor.selectionBackground': '#bfdbfe60',
+      'editor.inactiveSelectionBackground': '#bfdbfe30',
+      'editorCursor.foreground': '#0891b2',
+      'editorLineNumber.foreground': '#94a3b8',
+      'editorLineNumber.activeForeground': '#475569',
+      'editorIndentGuide.background': '#e2e8f0',
+      'editorIndentGuide.activeBackground': '#cbd5e1',
+      'editor.selectionHighlightBackground': '#bfdbfe40',
+      'editorBracketMatch.background': '#bfdbfe40',
+      'editorBracketMatch.border': '#0891b280',
+      'editorGutter.background': '#ffffff',
+      'editorWidget.background': '#f8fafc',
+      'editorWidget.border': '#e2e8f0',
+      'input.background': '#f1f5f9',
+      'input.border': '#e2e8f0',
+      'dropdown.background': '#ffffff',
+      'list.hoverBackground': '#f1f5f9',
+      'list.activeSelectionBackground': '#dbeafe',
+      'minimap.background': '#ffffff',
+    },
+  });
 }
 
 export function Editor({ onRun }: EditorProps) {
@@ -339,7 +385,7 @@ export function Editor({ onRun }: EditorProps) {
   const onRunRef = useRef(onRun);
   const {
     currentProject, activeFile, updateFileContent, editorFontSize,
-    executionResult,
+    executionResult, theme,
   } = useStore();
 
   const content = currentProject?.files[activeFile]?.content || '';
@@ -454,7 +500,7 @@ export function Editor({ onRun }: EditorProps) {
 
   if (!activeFile || !currentProject?.files[activeFile]) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-500">
+      <div className="flex-1 flex items-center justify-center text-t-faint">
         <div className="text-center">
           <div className="text-4xl mb-4">🐫</div>
           <p className="text-lg font-medium">No file open</p>
@@ -467,7 +513,7 @@ export function Editor({ onRun }: EditorProps) {
   return (
     <MonacoEditor
       language="ocaml"
-      theme="caraml-dark"
+      theme={theme === 'dark' ? 'caraml-dark' : 'caraml-light'}
       value={content}
       onChange={handleChange}
       beforeMount={handleEditorBeforeMount}

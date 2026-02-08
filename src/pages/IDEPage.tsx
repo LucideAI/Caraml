@@ -353,7 +353,7 @@ export function IDEPage() {
       <div className="h-screen flex items-center justify-center bg-ide-bg">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-400" size={32} />
-          <p className="text-slate-400">Loading project...</p>
+          <p className="text-t-muted">Loading project...</p>
         </div>
       </div>
     );
@@ -365,7 +365,7 @@ export function IDEPage() {
         <Header mode="ide" />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-lg text-slate-400 mb-4">
+            <p className="text-lg text-t-muted mb-4">
               {user ? 'Project not found' : 'Please sign in to open projects'}
             </p>
             {user ? (
@@ -418,7 +418,7 @@ export function IDEPage() {
                 {tab.isModified && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
                 <button
                   onClick={(e) => { e.stopPropagation(); closeTab(tab.filename); }}
-                  className="ml-1 p-0.5 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300"
+                  className="ml-1 p-0.5 rounded hover:bg-ide-hover text-t-faint hover:text-t-secondary"
                 >
                   <X size={12} />
                 </button>
