@@ -133,7 +133,7 @@ interface AppState {
   learnOcamlSyncAnswer: (exerciseId: string, code: string) => Promise<void>;
   learnOcamlGrade: (exerciseId: string, code: string) => Promise<LearnOcamlGradeResult>;
   setShowLearnOcamlModal: (show: boolean) => void;
-  learnOcamlRestoreConnection: () => void;
+  learnOcamlRestoreConnection: () => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -609,10 +609,29 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ learnOcaml: { ...s.learnOcaml, showConnectModal: show } }));
   },
 
-  learnOcamlRestoreConnection: () => {
+  learnOcamlRestoreConnection: async () => {
     const conn = learnOcamlApi.getConnection();
     if (conn) {
+      // Optimistically restore the connection for fast UI
       set((s) => ({ learnOcaml: { ...s.learnOcaml, connection: conn } }));
+      // Re-validate the token against the server
+      try {
+        await learnOcamlApi.connect(conn.serverUrl, conn.token);
+      } catch {
+        // Token is no longer valid — clear the stored connection
+        learnOcamlApi.disconnect();
+        set((s) => ({
+          learnOcaml: {
+            ...s.learnOcaml,
+            connection: null,
+            exercises: [],
+            grades: {},
+            currentExercise: null,
+            lastGradeResult: null,
+          },
+        }));
+        get().addNotification('warning', 'Learn OCaml session expired or token is invalid. Please reconnect.');
+      }
     }
   },
 }));
