@@ -68,7 +68,7 @@ export function MemoryViewer() {
                     <span className="text-slate-600">:</span>
                     <span className="text-brand-400 shrink-0">{v.type}</span>
                     <span className="text-slate-600">=</span>
-                    <span className="text-emerald-400 break-all">{truncate(v.value, 50)}</span>
+                    <span className="text-emerald-400 whitespace-pre-wrap break-words">{v.value}</span>
                   </div>
                 ))}
               </div>
@@ -87,9 +87,9 @@ export function MemoryViewer() {
                     </div>
                     {frame.variables.map((v, j) => (
                       <div key={j} className="flex items-start gap-1 pl-8 py-0.5 text-[11px]">
-                        <span className="text-violet-300">{v.name}</span>
+                        <span className="text-violet-300 shrink-0">{v.name}</span>
                         <span className="text-slate-700">=</span>
-                        <span className="text-slate-400">{truncate(v.value, 40)}</span>
+                        <span className="text-slate-400 whitespace-pre-wrap break-words">{v.value}</span>
                       </div>
                     ))}
                   </div>
@@ -123,9 +123,9 @@ export function MemoryViewer() {
                     <tbody>
                       {heap.map((obj, i) => (
                         <tr key={i} className="hover:bg-slate-800/50">
-                          <td className="pl-4 py-0.5 text-amber-500/70">0x{obj.id.toString(16).padStart(3, '0')}</td>
-                          <td className="py-0.5 text-brand-400">{obj.type}</td>
-                          <td className="py-0.5 text-emerald-400">{truncate(obj.value, 30)}</td>
+                          <td className="pl-4 py-0.5 text-amber-500/70 align-top">0x{obj.id.toString(16).padStart(3, '0')}</td>
+                          <td className="py-0.5 text-brand-400 align-top whitespace-pre-wrap break-words">{obj.type}</td>
+                          <td className="py-0.5 text-emerald-400 align-top whitespace-pre-wrap break-words">{obj.value}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -155,7 +155,7 @@ export function MemoryViewer() {
                     {td.definition && (
                       <>
                         <span className="text-slate-600"> = </span>
-                        <span className="text-slate-400">{td.definition}</span>
+                        <span className="text-slate-400 whitespace-pre-wrap break-words">{td.definition}</span>
                       </>
                     )}
                   </div>
@@ -187,6 +187,3 @@ function SectionHeader({
   );
 }
 
-function truncate(s: string, max: number): string {
-  return s.length > max ? s.slice(0, max) + '...' : s;
-}

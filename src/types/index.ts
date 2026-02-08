@@ -4,7 +4,15 @@ export interface User {
   username: string;
   email: string;
   avatar_color: string;
+  ui_prefs?: UserUiPreferences;
   created_at?: string;
+}
+
+export interface UserUiPreferences {
+  panelWidths?: {
+    fileTree?: number;
+    memory?: number;
+  };
 }
 
 // ── Project Types ───────────────────────────────────────────────────────────

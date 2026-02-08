@@ -58,7 +58,7 @@ IDE OCaml web complet (frontend React + backend Express) avec execution de code,
   - `ocamlformat`
   - `opam`
 
-Important: la detection des outils OCaml cote serveur utilise `which` + `opam env`. Le setup est donc surtout prevu pour Linux/macOS ou WSL.
+Important: la detection des outils OCaml cote serveur est cross-platform (Windows, macOS, Linux). Si les outils ne sont pas installes, l'application reste utilisable sans erreur systeme.
 
 ## Installation
 
@@ -67,6 +67,58 @@ Depuis `Caraml/`:
 ```bash
 npm install
 ```
+
+### Installation facilitee de la toolchain OCaml (optionnelle)
+
+On ne versionne pas les binaires `ocaml` / `ocamlmerlin` / `ocamlformat` dans Git (taille, portabilite, maintenance).
+A la place, le projet fournit un script d'installation reproductible via `opam`:
+
+Windows (installation opam + git):
+
+```powershell
+winget install Git.Git OCaml.opam
+```
+
+```bash
+npm run setup:ocaml
+```
+
+Le script cree (ou reutilise) un switch local `./_opam` et installe:
+
+- `ocaml-base-compiler.5.4.0`
+- `merlin.5.6.1-504`
+- `ocamlformat.0.28.1`
+
+Si `opam` est present mais pas initialise, le script execute automatiquement `opam init` (sur Windows avec `--cygwin-internal-install` pour eviter la question interactive).
+Pendant les etapes longues (compilation OCaml), le script affiche un heartbeat periodique `still running (...)` pour indiquer que l'installation continue.
+
+Ensuite, `npm run dev` detecte automatiquement ces outils.
+`npm run dev` lance aussi un auto-bootstrap (`ensure:ocaml`) au demarrage:
+
+- si la toolchain est absente et `opam` disponible, il lance automatiquement `setup:ocaml`;
+- sur Windows, si `opam` est absent, il tente une installation via `winget`, puis via le script officiel opam (best-effort);
+- en cas d'echec, l'application demarre en mode fallback navigateur.
+
+Pour desactiver l'auto-bootstrap:
+
+```bash
+npm run dev:no-ocaml
+```
+
+Ou via option/variable d'environnement:
+
+```bash
+CARAML_SKIP_OCAML_AUTO_SETUP=1 npm run dev
+npm run dev -- --skip-ocaml
+```
+
+PowerShell:
+
+```powershell
+$env:CARAML_SKIP_OCAML_AUTO_SETUP="1"; npm run dev
+```
+
+Si `opam` n'est pas encore installe: https://opam.ocaml.org/doc/Install.html
 
 ## Lancer le projet
 
@@ -77,8 +129,9 @@ npm run dev
 ```
 
 - Frontend: `http://localhost:5173`
-- API backend: `http://localhost:3001`
+- API backend: `http://localhost:3001` (ou un port libre suivant, si `3001` est deja pris)
 - Le frontend proxy automatiquement `/api` vers le backend.
+- Si `ocaml`, `ocamlmerlin` ou `ocamlformat` ne sont pas disponibles, le serveur bascule proprement en mode degrade (fallback navigateur + fonctions optionnelles desactivees).
 
 ### Lancer seulement le frontend
 
@@ -109,17 +162,28 @@ Note: `npm run start` sert `dist/` via Express. Pensez a lancer `npm run build` 
 ## Variables d'environnement
 
 - `JWT_SECRET` (optionnelle, mais fortement recommandee en non-local)
+- `CARAML_OCAML_PATH` (optionnelle): chemin explicite vers le binaire `ocaml`
+- `CARAML_OCAMLMERLIN_PATH` (optionnelle): chemin explicite vers le binaire `ocamlmerlin`
+- `CARAML_OCAMLFORMAT_PATH` (optionnelle): chemin explicite vers le binaire `ocamlformat`
 
-Exemple:
+Exemple Bash:
 
 ```bash
-JWT_SECRET="change-me" npm run dev:server
+JWT_SECRET="change-me" \
+CARAML_OCAML_PATH="/usr/local/bin/ocaml" \
+CARAML_OCAMLMERLIN_PATH="/usr/local/bin/ocamlmerlin" \
+CARAML_OCAMLFORMAT_PATH="/usr/local/bin/ocamlformat" \
+npm run dev:server
 ```
 
 PowerShell:
 
 ```powershell
-$env:JWT_SECRET="change-me"; npm run dev:server
+$env:JWT_SECRET="change-me"
+$env:CARAML_OCAML_PATH="C:\\Tools\\OCaml\\bin\\ocaml.exe"
+$env:CARAML_OCAMLMERLIN_PATH="C:\\Tools\\OCaml\\bin\\ocamlmerlin.exe"
+$env:CARAML_OCAMLFORMAT_PATH="C:\\Tools\\OCaml\\bin\\ocamlformat.exe"
+npm run dev:server
 ```
 
 Remarque: le port backend est fixe dans `server.js` (`3001`).
@@ -204,7 +268,7 @@ Base de donnees locale SQLite:
 
 ## Notes importantes
 
-- Si `ocaml` n'est pas detecte, l'application reste utilisable via l'interpreteur navigateur (fallback).
+- Si `ocaml` n'est pas detecte, l'application reste utilisable via l'interpreteur navigateur (fallback), sans erreur systeme parasite.
 - Si `ocamlmerlin` n'est pas detecte, la completion locale Monaco reste disponible.
 - Si `ocamlformat` n'est pas detecte, le bouton Format est desactive.
 - En l'etat, le secret JWT par defaut dans `server.js` doit etre remplace pour un usage reel.

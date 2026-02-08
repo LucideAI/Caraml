@@ -6,12 +6,30 @@ import type {
 } from '../types';
 import { api } from '../services/api';
 import { learnOcamlApi } from '../services/learnOcamlApi';
+import {
+  clampPanelWidth,
+  DEFAULT_FILE_TREE_WIDTH,
+  DEFAULT_MEMORY_PANEL_WIDTH,
+  PANEL_LIMITS,
+  type PanelWidthMode,
+} from '../utils/panelSizing';
 
 interface Capabilities {
   ocaml: boolean;
   ocamlVersion: string | null;
   merlin: boolean;
   ocamlformat: boolean;
+}
+
+function getStoredPanelWidths(user: User | null | undefined) {
+  const panelWidths = user?.ui_prefs?.panelWidths;
+  if (!panelWidths || typeof panelWidths !== 'object') return {};
+  return panelWidths;
+}
+
+function clampRuntimePanelWidth(kind: 'fileTree' | 'memory', width: number, fallback: number): number {
+  if (!Number.isFinite(width)) return fallback;
+  return Math.round(Math.min(PANEL_LIMITS[kind].max, Math.max(0, width)));
 }
 
 interface AppState {
@@ -69,6 +87,10 @@ interface AppState {
   showNewProjectModal: boolean;
   consoleFontSize: number;
   editorFontSize: number;
+  fileTreeWidth: number;
+  memoryPanelWidth: number;
+  fileTreeWidthMode: PanelWidthMode;
+  memoryPanelWidthMode: PanelWidthMode;
   notifications: Notification[];
   toggleMemoryPanel: () => void;
   toggleFileTree: () => void;
@@ -80,6 +102,10 @@ interface AppState {
   removeNotification: (id: string) => void;
   setEditorFontSize: (size: number) => void;
   setConsoleFontSize: (size: number) => void;
+  hydrateUiPrefsFromUser: (user: User | null) => void;
+  setFileTreeWidth: (width: number, mode?: PanelWidthMode) => void;
+  setMemoryPanelWidth: (width: number, mode?: PanelWidthMode) => void;
+  persistPanelWidths: () => Promise<void>;
 
   // Auto-save
   lastSaved: Date | null;
@@ -107,7 +133,7 @@ interface AppState {
   learnOcamlSyncAnswer: (exerciseId: string, code: string) => Promise<void>;
   learnOcamlGrade: (exerciseId: string, code: string) => Promise<LearnOcamlGradeResult>;
   setShowLearnOcamlModal: (show: boolean) => void;
-  learnOcamlRestoreConnection: () => void;
+  learnOcamlRestoreConnection: () => Promise<void>;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -125,18 +151,23 @@ export const useStore = create<AppState>((set, get) => ({
   // ── Auth State ──────────────────────────────────────────────────────────
   user: null,
   isAuthLoading: true,
-  setUser: (user) => set({ user }),
+  setUser: (user) => {
+    set({ user });
+    get().hydrateUiPrefsFromUser(user);
+  },
 
   login: async (login, password) => {
     const { token, user } = await api.login(login, password);
     api.setToken(token);
     set({ user, showAuthModal: false });
+    get().hydrateUiPrefsFromUser(user);
   },
 
   register: async (username, email, password) => {
     const { token, user } = await api.register(username, email, password);
     api.setToken(token);
     set({ user, showAuthModal: false });
+    get().hydrateUiPrefsFromUser(user);
   },
 
   logout: () => {
@@ -149,6 +180,10 @@ export const useStore = create<AppState>((set, get) => ({
       activeFile: '',
       executionResult: null,
       memoryState: null,
+      fileTreeWidth: DEFAULT_FILE_TREE_WIDTH,
+      memoryPanelWidth: DEFAULT_MEMORY_PANEL_WIDTH,
+      fileTreeWidthMode: 'auto',
+      memoryPanelWidthMode: 'auto',
     });
   },
 
@@ -157,12 +192,14 @@ export const useStore = create<AppState>((set, get) => ({
       if (api.getToken()) {
         const { user } = await api.getMe();
         set({ user, isAuthLoading: false });
+        get().hydrateUiPrefsFromUser(user);
       } else {
         set({ isAuthLoading: false });
       }
     } catch {
       api.setToken(null);
       set({ user: null, isAuthLoading: false });
+      get().hydrateUiPrefsFromUser(null);
     }
   },
 
@@ -358,6 +395,10 @@ export const useStore = create<AppState>((set, get) => ({
   showNewProjectModal: false,
   consoleFontSize: 13,
   editorFontSize: 14,
+  fileTreeWidth: DEFAULT_FILE_TREE_WIDTH,
+  memoryPanelWidth: DEFAULT_MEMORY_PANEL_WIDTH,
+  fileTreeWidthMode: 'auto',
+  memoryPanelWidthMode: 'auto',
   notifications: [],
 
   toggleMemoryPanel: () => set((s) => ({ showMemoryPanel: !s.showMemoryPanel })),
@@ -381,6 +422,53 @@ export const useStore = create<AppState>((set, get) => ({
 
   setEditorFontSize: (size) => set({ editorFontSize: size }),
   setConsoleFontSize: (size) => set({ consoleFontSize: size }),
+  hydrateUiPrefsFromUser: (user) => {
+    const storedWidths = getStoredPanelWidths(user);
+    const hasFileTreeWidth = Number.isFinite(storedWidths.fileTree);
+    const hasMemoryWidth = Number.isFinite(storedWidths.memory);
+
+    set({
+      fileTreeWidth: hasFileTreeWidth
+        ? clampPanelWidth('fileTree', Number(storedWidths.fileTree))
+        : DEFAULT_FILE_TREE_WIDTH,
+      memoryPanelWidth: hasMemoryWidth
+        ? clampPanelWidth('memory', Number(storedWidths.memory))
+        : DEFAULT_MEMORY_PANEL_WIDTH,
+      fileTreeWidthMode: hasFileTreeWidth ? 'manual' : 'auto',
+      memoryPanelWidthMode: hasMemoryWidth ? 'manual' : 'auto',
+    });
+  },
+  setFileTreeWidth: (width, mode) => set((state) => ({
+    fileTreeWidth: clampRuntimePanelWidth('fileTree', width, state.fileTreeWidth),
+    fileTreeWidthMode: mode ?? state.fileTreeWidthMode,
+  })),
+  setMemoryPanelWidth: (width, mode) => set((state) => ({
+    memoryPanelWidth: clampRuntimePanelWidth('memory', width, state.memoryPanelWidth),
+    memoryPanelWidthMode: mode ?? state.memoryPanelWidthMode,
+  })),
+  persistPanelWidths: async () => {
+    const { user, fileTreeWidth, memoryPanelWidth } = get();
+    if (!user) return;
+    try {
+      const { user: updatedUser } = await api.updatePreferences({
+        panelWidths: {
+          fileTree: clampPanelWidth('fileTree', fileTreeWidth),
+          memory: clampPanelWidth('memory', memoryPanelWidth),
+        },
+      });
+      const nextUiPrefs = updatedUser?.ui_prefs || {};
+      const currentUiPrefs = get().user?.ui_prefs || {};
+      const hasUiPrefsChanged = JSON.stringify(nextUiPrefs) !== JSON.stringify(currentUiPrefs);
+
+      if (hasUiPrefsChanged) {
+        set((state) => ({
+          user: state.user ? { ...state.user, ui_prefs: nextUiPrefs } : state.user,
+        }));
+      }
+    } catch {
+      get().addNotification('warning', 'Unable to save panel width preferences');
+    }
+  },
 
   // ── Auto-save ───────────────────────────────────────────────────────────
   lastSaved: null,
@@ -521,10 +609,29 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ learnOcaml: { ...s.learnOcaml, showConnectModal: show } }));
   },
 
-  learnOcamlRestoreConnection: () => {
+  learnOcamlRestoreConnection: async () => {
     const conn = learnOcamlApi.getConnection();
     if (conn) {
+      // Optimistically restore the connection for fast UI
       set((s) => ({ learnOcaml: { ...s.learnOcaml, connection: conn } }));
+      // Re-validate the token against the server
+      try {
+        await learnOcamlApi.connect(conn.serverUrl, conn.token);
+      } catch {
+        // Token is no longer valid — clear the stored connection
+        learnOcamlApi.disconnect();
+        set((s) => ({
+          learnOcaml: {
+            ...s.learnOcaml,
+            connection: null,
+            exercises: [],
+            grades: {},
+            currentExercise: null,
+            lastGradeResult: null,
+          },
+        }));
+        get().addNotification('warning', 'Learn OCaml session expired or token is invalid. Please reconnect.');
+      }
     }
   },
 }));

@@ -62,6 +62,13 @@ class ApiClient {
     return this.request<{ user: any }>('/auth/me');
   }
 
+  async updatePreferences(data: { panelWidths?: { fileTree?: number; memory?: number } }) {
+    return this.request<{ user: any }>('/auth/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // ── Projects ────────────────────────────────────────────────────────────
   async listProjects() {
     return this.request<{ projects: any[] }>('/projects');
@@ -134,7 +141,7 @@ class ApiClient {
     });
   }
 
-  async runToplevel(code: string) {
+  async runToplevel(code: string, signal?: AbortSignal) {
     return this.request<{
       backend: boolean;
       output?: string;
@@ -146,6 +153,7 @@ class ApiClient {
     }>('/toplevel', {
       method: 'POST',
       body: JSON.stringify({ code }),
+      signal,
     });
   }
 

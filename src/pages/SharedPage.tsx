@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef, type PointerEvent as ReactPointerEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { useStore } from '../store';
@@ -9,7 +9,20 @@ import { MemoryViewer } from '../components/MemoryViewer';
 import { AuthModal } from '../components/AuthModal';
 import { interpret } from '../interpreter';
 import { Loader2, GitFork, User as UserIcon } from 'lucide-react';
-import type { Project } from '../types';
+import {
+  computeAutoMemoryPanelWidth,
+  EDITOR_MIN_WIDTH,
+  PANEL_LIMITS,
+  RESIZE_HANDLE_WIDTH,
+} from '../utils/panelSizing';
+
+function isAbortError(error: unknown): boolean {
+  if (error instanceof DOMException) return error.name === 'AbortError';
+  if (typeof error === 'object' && error !== null && 'name' in error) {
+    return (error as { name?: string }).name === 'AbortError';
+  }
+  return false;
+}
 
 export function SharedPage() {
   const { shareId } = useParams<{ shareId: string }>();
@@ -18,16 +31,85 @@ export function SharedPage() {
     user, setCurrentProject, currentProject,
     showConsole, showMemoryPanel,
     setExecutionResult, setIsRunning, isRunning,
-    activeFile, openTabs, setActiveFile,
+    activeFile, setActiveFile,
     addNotification, capabilities, loadCapabilities,
+    memoryState, memoryPanelWidth, memoryPanelWidthMode,
+    setMemoryPanelWidth, persistPanelWidths,
   } = useStore();
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [isForking, setIsForking] = useState(false);
+  const layoutRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<{ startX: number; startWidth: number } | null>(null);
+  const runAbortRef = useRef<AbortController | null>(null);
+  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const runSeqRef = useRef(0);
+
+  const getLayoutWidth = useCallback(() => {
+    return layoutRef.current?.clientWidth ?? window.innerWidth;
+  }, []);
+
+  const getMaxMemoryWidth = useCallback((totalWidth?: number) => {
+    const width = totalWidth ?? getLayoutWidth();
+    const visibleHandles = showMemoryPanel ? 1 : 0;
+    const handleSpace = visibleHandles * RESIZE_HANDLE_WIDTH;
+    return Math.max(0, Math.min(PANEL_LIMITS.memory.max, width - EDITOR_MIN_WIDTH - handleSpace));
+  }, [showMemoryPanel, getLayoutWidth]);
+
+  const startResize = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    dragStateRef.current = { startX: e.clientX, startWidth: memoryPanelWidth };
+    setMemoryPanelWidth(memoryPanelWidth, 'manual');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const dragState = dragStateRef.current;
+      if (!dragState) return;
+      const maxWidth = getMaxMemoryWidth();
+      const minWidth = Math.min(PANEL_LIMITS.memory.min, maxWidth);
+      const nextWidth = dragState.startWidth - (event.clientX - dragState.startX);
+      setMemoryPanelWidth(Math.min(maxWidth, Math.max(minWidth, nextWidth)));
+    };
+
+    const handlePointerUp = () => {
+      dragStateRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      if (user) {
+        void persistPanelWidths();
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+  }, [memoryPanelWidth, setMemoryPanelWidth, getMaxMemoryWidth, persistPanelWidths, user]);
 
   useEffect(() => { loadCapabilities(); }, [loadCapabilities]);
+
+  useEffect(() => {
+    if (!showMemoryPanel || memoryPanelWidthMode !== 'auto') return;
+    setMemoryPanelWidth(computeAutoMemoryPanelWidth(memoryState), 'auto');
+  }, [showMemoryPanel, memoryPanelWidthMode, memoryState, setMemoryPanelWidth]);
+
+  useEffect(() => {
+    const clampPanelToViewport = () => {
+      if (!showMemoryPanel) return;
+      const maxWidth = getMaxMemoryWidth(getLayoutWidth());
+      const minWidth = Math.min(PANEL_LIMITS.memory.min, maxWidth);
+      if (memoryPanelWidth > maxWidth || memoryPanelWidth < minWidth) {
+        setMemoryPanelWidth(Math.max(minWidth, Math.min(maxWidth, memoryPanelWidth)));
+      }
+    };
+
+    clampPanelToViewport();
+    window.addEventListener('resize', clampPanelToViewport);
+    return () => window.removeEventListener('resize', clampPanelToViewport);
+  }, [showMemoryPanel, memoryPanelWidth, getLayoutWidth, getMaxMemoryWidth, setMemoryPanelWidth]);
 
   useEffect(() => {
     if (!shareId) return;
@@ -56,17 +138,69 @@ export function SharedPage() {
   }, [shareId]);
 
   const handleRun = useCallback(async () => {
-    if (!currentProject || !activeFile || isRunning) return;
+    if (!currentProject || !activeFile) return;
     const file = currentProject.files[activeFile];
     if (!file) return;
 
+    if (runAbortRef.current) {
+      runAbortRef.current.abort();
+      runAbortRef.current = null;
+    }
+    if (fallbackTimerRef.current) {
+      clearTimeout(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
+
+    const runSeq = ++runSeqRef.current;
     setIsRunning(true);
+
+    let controller: AbortController | null = null;
+    const finalizeIfCurrent = () => {
+      if (runSeqRef.current === runSeq) {
+        setIsRunning(false);
+      }
+    };
+    const scheduleFallback = () => {
+      fallbackTimerRef.current = setTimeout(() => {
+        if (runSeqRef.current !== runSeq) return;
+        try {
+          const result = interpret(file.content);
+          setExecutionResult(result);
+        } catch (err: any) {
+          if (runSeqRef.current !== runSeq) return;
+          setExecutionResult({
+            output: '', values: [],
+            errors: [{ line: 0, column: 0, message: err.message || 'Unknown error' }],
+            memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
+            executionTimeMs: 0,
+          });
+        } finally {
+          if (fallbackTimerRef.current) {
+            clearTimeout(fallbackTimerRef.current);
+            fallbackTimerRef.current = null;
+          }
+          finalizeIfCurrent();
+        }
+      }, 10);
+    };
+
     try {
       if (capabilities.ocaml) {
-        const toplevelResult = await api.runToplevel(file.content);
+        controller = new AbortController();
+        runAbortRef.current = controller;
+        const toplevelResult = await api.runToplevel(file.content, controller.signal);
+
+        if (runAbortRef.current === controller) {
+          runAbortRef.current = null;
+        }
+        if (runSeqRef.current !== runSeq) return;
+
         if (toplevelResult.backend) {
           let memoryState: import('../types').MemoryState = { stack: [], heap: [], environment: [], typeDefinitions: [] };
-          try { const lr = interpret(file.content); memoryState = lr.memoryState; } catch {}
+          try {
+            const localResult = interpret(file.content);
+            memoryState = localResult.memoryState;
+          } catch {}
           setExecutionResult({
             output: toplevelResult.output || '',
             values: toplevelResult.values || [],
@@ -74,27 +208,39 @@ export function SharedPage() {
             memoryState,
             executionTimeMs: toplevelResult.executionTimeMs || 0,
           });
-          setIsRunning(false);
+          finalizeIfCurrent();
           return;
         }
       }
-    } catch {}
 
-    // Fallback to browser
-    setTimeout(() => {
-      try {
-        const result = interpret(file.content);
-        setExecutionResult(result);
-      } catch (err: any) {
-        setExecutionResult({
-          output: '', values: [],
-          errors: [{ line: 0, column: 0, message: err.message }],
-          memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
-          executionTimeMs: 0,
-        });
-      } finally { setIsRunning(false); }
-    }, 10);
-  }, [currentProject, activeFile, isRunning, capabilities]);
+      if (runSeqRef.current !== runSeq) return;
+      scheduleFallback();
+    } catch (err: unknown) {
+      if (runAbortRef.current === controller) {
+        runAbortRef.current = null;
+      }
+      if (isAbortError(err)) {
+        return;
+      }
+      if (runSeqRef.current !== runSeq) return;
+      scheduleFallback();
+    }
+  }, [currentProject, activeFile, capabilities, setExecutionResult, setIsRunning]);
+
+  useEffect(() => {
+    return () => {
+      runSeqRef.current += 1;
+      if (runAbortRef.current) {
+        runAbortRef.current.abort();
+        runAbortRef.current = null;
+      }
+      if (fallbackTimerRef.current) {
+        clearTimeout(fallbackTimerRef.current);
+        fallbackTimerRef.current = null;
+      }
+      setIsRunning(false);
+    };
+  }, [setIsRunning]);
 
   const handleFork = async () => {
     if (!user) {
@@ -174,7 +320,7 @@ export function SharedPage() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div ref={layoutRef} className="flex-1 flex overflow-hidden">
         {/* Main editor area */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Tabs */}
@@ -203,9 +349,15 @@ export function SharedPage() {
         </div>
 
         {showMemoryPanel && (
-          <div className="w-72 shrink-0 border-l border-ide-border">
-            <MemoryViewer />
-          </div>
+          <>
+            <div
+              className="resize-handle w-1.5 shrink-0 bg-ide-border/70 hover:bg-brand-500/40 transition-colors touch-none"
+              onPointerDown={startResize}
+            />
+            <div style={{ width: `${memoryPanelWidth}px` }} className="shrink-0 border-l border-ide-border overflow-hidden">
+              <MemoryViewer />
+            </div>
+          </>
         )}
       </div>
 
