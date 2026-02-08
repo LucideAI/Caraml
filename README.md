@@ -87,7 +87,7 @@ Le script cree (ou reutilise) un switch local `./_opam` et installe:
 
 - `ocaml-base-compiler.5.4.0`
 - `merlin.5.6.1-504`
-- `ocamlformat.0.28.1`
+- `ocamlformat.0.28.1` (best-effort, optionnel)
 
 Si `opam` est present mais pas initialise, le script execute automatiquement `opam init` (sur Windows avec `--cygwin-internal-install` pour eviter la question interactive).
 Pendant les etapes longues (compilation OCaml), le script affiche un heartbeat periodique `still running (...)` pour indiquer que l'installation continue.
