@@ -336,12 +336,17 @@ export function registerOcamlLanguage(monaco: any) {
 
 export function Editor({ onRun }: EditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const onRunRef = useRef(onRun);
   const {
     currentProject, activeFile, updateFileContent, editorFontSize,
     executionResult,
   } = useStore();
 
   const content = currentProject?.files[activeFile]?.content || '';
+
+  useEffect(() => {
+    onRunRef.current = onRun;
+  }, [onRun]);
 
   const handleEditorBeforeMount: BeforeMount = (monaco) => {
     registerOcamlLanguage(monaco);
@@ -355,7 +360,7 @@ export function Editor({ onRun }: EditorProps) {
       id: 'run-code',
       label: 'Run Code',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-      run: () => onRun?.(),
+      run: () => onRunRef.current?.(),
     });
 
     editor.addAction({

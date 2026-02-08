@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+_opam/
 
 # Build output
 dist/
@@ -29,3 +30,6 @@ Desktop.ini
 # Logs
 *.log
 npm-debug.log*
+
+
+*.tmp-menhir-source/
