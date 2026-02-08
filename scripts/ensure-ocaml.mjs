@@ -83,9 +83,8 @@ function hasLocalToolchain(opamCmd) {
 
   const ocaml = runQuiet(opamCmd, ['exec', '--switch=.', '--', 'ocaml', '-version']);
   const merlin = runQuiet(opamCmd, ['exec', '--switch=.', '--', 'ocamlmerlin', '-version']);
-  const ocamlformat = runQuiet(opamCmd, ['exec', '--switch=.', '--', 'ocamlformat', '--version']);
 
-  return ocaml.status === 0 && merlin.status === 0 && ocamlformat.status === 0;
+  return ocaml.status === 0 && merlin.status === 0;
 }
 
 function tryInstallViaWinget() {
