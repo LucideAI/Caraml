@@ -59,11 +59,11 @@ export function Console() {
         <div className="flex items-center gap-1">
           {executionResult && (
             <>
-              <span className="flex items-center gap-1 text-slate-500 text-[10px] mr-1" title={capabilities.ocaml ? 'Executed with real OCaml' : 'Executed with browser interpreter'}>
+              <span className="flex items-center gap-1 text-t-faint text-[10px] mr-1" title={capabilities.ocaml ? 'Executed with real OCaml' : 'Executed with browser interpreter'}>
                 {capabilities.ocaml ? <Server size={10} /> : <Cpu size={10} />}
                 {capabilities.ocaml ? 'OCaml' : 'Browser'}
               </span>
-              <span className="flex items-center gap-1 text-slate-500 text-[10px] mr-2">
+              <span className="flex items-center gap-1 text-t-faint text-[10px] mr-2">
                 <Clock size={10} />
                 {executionResult.executionTimeMs.toFixed(1)}ms
               </span>
@@ -85,14 +85,14 @@ export function Console() {
       {/* Console Output */}
       <div ref={scrollRef} className="flex-1 overflow-auto p-3 font-mono" style={{ fontSize: consoleFontSize }}>
         {!executionResult ? (
-          <div className="text-slate-600 italic text-sm">
+          <div className="text-t-ghost italic text-sm">
             Press Ctrl+Enter or click Run to execute your code...
           </div>
         ) : (
           <div className="space-y-1">
             {/* Standard output */}
             {executionResult.output && (
-              <pre className="text-slate-300 whitespace-pre-wrap">{executionResult.output}</pre>
+              <pre className="text-t-secondary whitespace-pre-wrap">{executionResult.output}</pre>
             )}
 
             {/* Values */}
@@ -104,10 +104,10 @@ export function Console() {
                   <span className="text-amber-400">{v.value}</span>
                 ) : (
                   <>
-                    <span className="text-slate-500">{v.name === '-' ? '-' : `val ${v.name}`}</span>
-                    <span className="text-slate-600">:</span>
+                    <span className="text-t-faint">{v.name === '-' ? '-' : `val ${v.name}`}</span>
+                    <span className="text-t-ghost">:</span>
                     <span className="text-brand-400">{v.type}</span>
-                    <span className="text-slate-600">=</span>
+                    <span className="text-t-ghost">=</span>
                     <span className="text-emerald-400">{v.value}</span>
                   </>
                 )}

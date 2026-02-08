@@ -68,8 +68,8 @@ export function ShareModal() {
               <Link size={20} className="text-brand-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-100">Share Project</h2>
-              <p className="text-sm text-slate-400">"{currentProject.name}"</p>
+              <h2 className="text-lg font-bold text-t-primary">Share Project</h2>
+              <p className="text-sm text-t-muted">"{currentProject.name}"</p>
             </div>
           </div>
           <button onClick={() => setShowShareModal(false)} className="btn-icon">
@@ -79,13 +79,13 @@ export function ShareModal() {
 
         <div className="px-6 pb-6 space-y-4">
           {/* Status */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+          <div className="flex items-center gap-3 p-3 rounded-lg border" style={{ backgroundColor: 'var(--surface-1)', borderColor: 'var(--surface-2)' }}>
             {isPublic ? (
               <>
                 <Globe size={18} className="text-emerald-400" />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-emerald-400">Public</p>
-                  <p className="text-xs text-slate-500">Anyone with the link can view this project</p>
+                  <p className="text-xs text-t-faint">Anyone with the link can view this project</p>
                 </div>
                 <button onClick={handleUnshare} disabled={isLoading} className="btn-ghost btn-sm text-rose-400 hover:text-rose-300">
                   {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
@@ -94,10 +94,10 @@ export function ShareModal() {
               </>
             ) : (
               <>
-                <Lock size={18} className="text-slate-400" />
+                <Lock size={18} className="text-t-muted" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-300">Private</p>
-                  <p className="text-xs text-slate-500">Only you can access this project</p>
+                  <p className="text-sm font-medium text-t-secondary">Private</p>
+                  <p className="text-xs text-t-faint">Only you can access this project</p>
                 </div>
                 <button onClick={handleShare} disabled={isLoading} className="btn-primary btn-sm">
                   {isLoading ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
@@ -110,7 +110,7 @@ export function ShareModal() {
           {/* Share link */}
           {isPublic && shareUrl && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Share Link</label>
+              <label className="text-sm font-medium text-t-secondary">Share Link</label>
               <div className="flex gap-2">
                 <input
                   type="text"

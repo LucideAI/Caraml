@@ -257,7 +257,7 @@ export function LearnOcamlExercisePage() {
       <div className="h-screen flex items-center justify-center bg-ide-bg">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-400" size={32} />
-          <p className="text-slate-400">Loading exercise...</p>
+          <p className="text-t-muted">Loading exercise...</p>
         </div>
       </div>
     );
@@ -275,7 +275,7 @@ export function LearnOcamlExercisePage() {
             <ArrowLeft size={18} />
           </button>
           <GraduationCap size={18} className="text-orange-400" />
-          <span className="text-sm font-medium text-slate-300 truncate max-w-[300px]">
+          <span className="text-sm font-medium text-t-secondary truncate max-w-[300px]">
             {exercise.title || decodedId}
           </span>
           {currentGrade !== null && currentGrade !== undefined && (
@@ -337,7 +337,7 @@ export function LearnOcamlExercisePage() {
         {/* Right */}
         <div className="flex items-center gap-2">
           {lastSyncTime && (
-            <span className="text-xs text-slate-500 hidden md:flex items-center gap-1">
+            <span className="text-xs text-t-faint hidden md:flex items-center gap-1">
               <Clock size={10} />
               Synced {lastSyncTime.toLocaleTimeString()}
             </span>
@@ -353,7 +353,7 @@ export function LearnOcamlExercisePage() {
           <div className="border-b border-ide-border">
             <button
               onClick={() => setShowDescription(!showDescription)}
-              className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:bg-slate-800/50 transition-colors"
+              className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider hover:bg-ide-hover transition-colors"
             >
               <div className="flex items-center gap-2">
                 <FileText size={12} />
@@ -363,9 +363,9 @@ export function LearnOcamlExercisePage() {
             </button>
             {showDescription && (
               <div
-                className="px-3 pb-3 text-sm text-slate-300 leading-relaxed overflow-auto max-h-64 learn-ocaml-description"
+                className="px-3 pb-3 text-sm text-t-secondary leading-relaxed overflow-auto max-h-64 learn-ocaml-description"
                 dangerouslySetInnerHTML={{
-                  __html: exercise.description || '<p class="text-slate-500">No description available.</p>',
+                  __html: exercise.description || '<p class="text-t-faint">No description available.</p>',
                 }}
               />
             )}
@@ -376,7 +376,7 @@ export function LearnOcamlExercisePage() {
             <div className="border-b border-ide-border">
               <button
                 onClick={() => setShowPrelude(!showPrelude)}
-                className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:bg-slate-800/50 transition-colors"
+                className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider hover:bg-ide-hover transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <Code size={12} />
@@ -385,7 +385,7 @@ export function LearnOcamlExercisePage() {
                 {showPrelude ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
               {showPrelude && (
-                <pre className="px-3 pb-3 text-xs text-slate-400 font-mono overflow-auto max-h-48 leading-relaxed whitespace-pre-wrap">
+                <pre className="px-3 pb-3 text-xs text-t-muted font-mono overflow-auto max-h-48 leading-relaxed whitespace-pre-wrap">
                   {exercise.prelude}
                 </pre>
               )}
@@ -394,7 +394,7 @@ export function LearnOcamlExercisePage() {
 
           {/* Grade Result Panel */}
           <div className="flex-1 overflow-auto">
-            <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+            <div className="px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider flex items-center gap-2">
               <Trophy size={12} />
               Grade Report
             </div>
@@ -403,7 +403,7 @@ export function LearnOcamlExercisePage() {
               <div className="flex items-center justify-center py-8">
                 <div className="flex flex-col items-center gap-2">
                   <Loader2 size={24} className="animate-spin text-orange-400" />
-                  <p className="text-xs text-slate-500">Grading...</p>
+                  <p className="text-xs text-t-faint">Grading...</p>
                 </div>
               </div>
             ) : gradeResult ? (
@@ -419,7 +419,7 @@ export function LearnOcamlExercisePage() {
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-slate-300">Score</span>
+                    <span className="text-sm font-medium text-t-secondary">Score</span>
                     <span
                       className={`text-lg font-bold ${
                         gradeResult.grade !== null && gradeResult.grade >= 100
@@ -453,7 +453,7 @@ export function LearnOcamlExercisePage() {
                             ? 'bg-rose-500/10 text-rose-400'
                             : item.status === 'warning'
                             ? 'bg-amber-500/10 text-amber-400'
-                            : 'bg-slate-800/50 text-slate-400'
+                            : 'bg-surface-1 text-t-muted'
                         }`}
                       >
                         <div className="flex items-start gap-1.5">
@@ -477,11 +477,11 @@ export function LearnOcamlExercisePage() {
               </div>
             ) : (
               <div className="px-3 pb-3 text-center py-8">
-                <Trophy size={24} className="mx-auto text-slate-700 mb-2" />
-                <p className="text-xs text-slate-500">
+                <Trophy size={24} className="mx-auto text-t-ghost mb-2" />
+                <p className="text-xs text-t-faint">
                   Click "Grade" to submit your solution
                 </p>
-                <p className="text-xs text-slate-600 mt-1">
+                <p className="text-xs text-t-ghost mt-1">
                   Ctrl+Shift+G
                 </p>
               </div>
@@ -526,6 +526,7 @@ function LearnOcamlEditor({
   fontSize: number;
   onRun: () => void;
 }) {
+  const { theme } = useStore();
   const onRunRef = useRef(onRun);
 
   useEffect(() => {
@@ -550,7 +551,7 @@ function LearnOcamlEditor({
     <MonacoEditor
       height="100%"
       language="ocaml"
-      theme="caraml-dark"
+      theme={theme === 'dark' ? 'caraml-dark' : 'caraml-light'}
       value={code}
       onChange={(value: string | undefined) => onChange(value || '')}
       beforeMount={handleEditorBeforeMount}

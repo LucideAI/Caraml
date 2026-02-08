@@ -73,10 +73,10 @@ export function DashboardPage() {
             {/* Hero */}
             <div className="text-center mb-16">
               <div className="text-6xl mb-6">🐫</div>
-              <h1 className="text-4xl sm:text-5xl font-bold text-slate-100 mb-4">
+              <h1 className="text-4xl sm:text-5xl font-bold text-t-primary mb-4">
                 <span className="text-gradient">Caraml</span>
               </h1>
-              <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
+              <p className="text-xl text-t-muted max-w-2xl mx-auto mb-8">
                 Professional OCaml IDE in your browser. Write, run, debug, and share
                 OCaml code with memory visualization — no setup required.
               </p>
@@ -129,10 +129,10 @@ export function DashboardPage() {
               ].map((feature, i) => {
                 const Icon = feature.icon;
                 return (
-                  <div key={i} className="panel p-6 hover:border-slate-600 transition-colors">
+                  <div key={i} className="panel p-6 hover:border-ide-border transition-colors">
                     <Icon size={24} className={`${feature.color} mb-3`} />
-                    <h3 className="font-semibold text-slate-200 mb-2">{feature.title}</h3>
-                    <p className="text-sm text-slate-400">{feature.description}</p>
+                    <h3 className="font-semibold text-t-primary mb-2">{feature.title}</h3>
+                    <p className="text-sm text-t-muted">{feature.description}</p>
                   </div>
                 );
               })}
@@ -142,9 +142,9 @@ export function DashboardPage() {
             <div className="panel p-6 max-w-2xl mx-auto">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles size={16} className="text-brand-400" />
-                <h3 className="font-semibold text-slate-200">Try it out</h3>
+                <h3 className="font-semibold text-t-primary">Try it out</h3>
               </div>
-              <pre className="font-mono text-sm text-slate-400 leading-relaxed">
+              <pre className="font-mono text-sm text-t-muted leading-relaxed">
                 <code>{`(* Pattern matching & recursion *)
 let rec fibonacci = function
     | 0 -> 0
@@ -176,23 +176,23 @@ let () =
                         <GraduationCap size={24} className="text-orange-400" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-slate-200 flex items-center gap-2">
+                        <h3 className="font-semibold text-t-primary flex items-center gap-2">
                           Learn OCaml
                           <span className="badge badge-success text-[10px]">
                             <CheckCircle2 size={10} className="mr-0.5" /> Connected
                           </span>
                         </h3>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-t-faint mt-0.5">
                           {learnOcaml.connection.serverUrl.replace(/https?:\/\//, '')}
                           {learnOcaml.connection.nickname && (
-                            <span className="text-slate-400"> &middot; {learnOcaml.connection.nickname}</span>
+                            <span className="text-t-muted"> &middot; {learnOcaml.connection.nickname}</span>
                           )}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       {Object.keys(learnOcaml.grades).length > 0 && (
-                        <div className="flex items-center gap-2 text-sm text-slate-400">
+                        <div className="flex items-center gap-2 text-sm text-t-muted">
                           <Trophy size={14} className="text-amber-400" />
                           <span>
                             {Object.values(learnOcaml.grades).filter((g) => g >= 100).length} completed
@@ -201,7 +201,7 @@ let () =
                       )}
                       <ChevronRight
                         size={18}
-                        className="text-slate-600 group-hover:text-orange-400 transition-colors"
+                        className="text-t-ghost group-hover:text-orange-400 transition-colors"
                       />
                     </div>
                   </div>
@@ -215,8 +215,8 @@ let () =
                         <GraduationCap size={24} className="text-orange-400/60" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-slate-300">Learn OCaml Integration</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <h3 className="font-semibold text-t-secondary">Learn OCaml Integration</h3>
+                        <p className="text-xs text-t-faint mt-0.5">
                           Connect your university Learn OCaml account to access exercises and submit directly from Caraml
                         </p>
                       </div>
@@ -236,8 +236,8 @@ let () =
             {/* Header section */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
               <div>
-                <h1 className="text-2xl font-bold text-slate-100">Your Projects</h1>
-                <p className="text-sm text-slate-400 mt-1">
+                <h1 className="text-2xl font-bold text-t-primary">Your Projects</h1>
+                <p className="text-sm text-t-muted mt-1">
                   {projects.length} project{projects.length !== 1 ? 's' : ''}
                 </p>
               </div>
@@ -253,7 +253,7 @@ let () =
             {/* Search */}
             {projects.length > 3 && (
               <div className="relative mb-6">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-t-faint" />
                 <input
                   type="text"
                   value={searchQuery}
@@ -273,13 +273,13 @@ let () =
               <div className="text-center py-20">
                 {searchQuery ? (
                   <>
-                    <Search size={48} className="mx-auto text-slate-700 mb-4" />
-                    <p className="text-lg text-slate-400">No projects matching "{searchQuery}"</p>
+                    <Search size={48} className="mx-auto text-t-ghost mb-4" />
+                    <p className="text-lg text-t-muted">No projects matching "{searchQuery}"</p>
                   </>
                 ) : (
                   <>
-                    <FolderOpen size={48} className="mx-auto text-slate-700 mb-4" />
-                    <p className="text-lg text-slate-400 mb-4">No projects yet</p>
+                    <FolderOpen size={48} className="mx-auto text-t-ghost mb-4" />
+                    <p className="text-lg text-t-muted mb-4">No projects yet</p>
                     <button
                       onClick={() => setShowNewProjectModal(true)}
                       className="btn-primary"
@@ -297,12 +297,12 @@ let () =
                   <div
                     key={project.id}
                     onClick={() => navigate(`/ide/${project.id}`)}
-                    className="panel p-5 cursor-pointer hover:border-slate-600 hover:glow-sm transition-all group"
+                    className="panel p-5 cursor-pointer hover:border-ide-border hover:glow-sm transition-all group"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <Code size={16} className="text-orange-400" />
-                        <h3 className="font-semibold text-slate-200 truncate">{project.name}</h3>
+                        <h3 className="font-semibold text-t-primary truncate">{project.name}</h3>
                       </div>
                       {project.is_public ? (
                         <span className="badge-info text-[10px]">
@@ -312,11 +312,11 @@ let () =
                     </div>
 
                     {project.description && (
-                      <p className="text-sm text-slate-500 mb-3 line-clamp-2">{project.description}</p>
+                      <p className="text-sm text-t-faint mb-3 line-clamp-2">{project.description}</p>
                     )}
 
-                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-800">
-                      <div className="flex items-center gap-1 text-xs text-slate-600">
+                    <div className="flex items-center justify-between mt-auto pt-3 border-t border-ide-border">
+                      <div className="flex items-center gap-1 text-xs text-t-ghost">
                         <Clock size={12} />
                         <span>{formatDate(project.updated_at)}</span>
                       </div>
@@ -325,7 +325,7 @@ let () =
                         <button
                           onClick={(e) => handleDelete(e, project.id)}
                           disabled={deletingId === project.id}
-                          className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                          className="p-1.5 rounded-md text-t-faint hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
                           title="Delete"
                         >
                           {deletingId === project.id ? (

@@ -45,7 +45,7 @@ export function FileTree() {
   const getFileIcon = (filename: string) => {
     if (filename.endsWith('.ml')) return <FileCode size={14} className="text-orange-400 shrink-0" />;
     if (filename.endsWith('.mli')) return <FileCode size={14} className="text-blue-400 shrink-0" />;
-    return <FileText size={14} className="text-slate-400 shrink-0" />;
+    return <FileText size={14} className="text-t-muted shrink-0" />;
   };
 
   return (
@@ -78,13 +78,14 @@ export function FileTree() {
                 if (e.key === 'Escape') setIsCreating(false);
               }}
               placeholder="filename.ml"
-              className="min-w-0 flex-1 bg-slate-800 border border-brand-500 rounded px-1.5 py-0.5 text-xs text-slate-200 focus:outline-none"
+              className="min-w-0 flex-1 border border-brand-500 rounded px-1.5 py-0.5 text-xs text-t-secondary focus:outline-none"
+              style={{ backgroundColor: 'var(--surface-1)' }}
               autoFocus
             />
             <button onClick={handleCreate} className="text-emerald-400 hover:text-emerald-300">
               <Check size={12} />
             </button>
-            <button onClick={() => setIsCreating(false)} className="text-slate-400 hover:text-slate-300">
+            <button onClick={() => setIsCreating(false)} className="text-t-muted hover:text-t-secondary">
               <X size={12} />
             </button>
           </div>
@@ -96,8 +97,8 @@ export function FileTree() {
             key={filename}
             className={`group flex min-w-0 items-center gap-1.5 px-3 py-1.5 cursor-pointer text-sm transition-colors ${
               activeFile === filename
-                ? 'bg-ide-active text-slate-100 border-r-2 border-brand-500'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-ide-hover'
+                ? 'bg-ide-active text-t-primary border-r-2 border-brand-500'
+                : 'text-t-muted hover:text-t-secondary hover:bg-ide-hover'
             }`}
             onClick={() => openFile(filename)}
           >
@@ -113,7 +114,8 @@ export function FileTree() {
                   if (e.key === 'Escape') setRenamingFile(null);
                 }}
                 onBlur={() => handleRename(filename)}
-                className="min-w-0 flex-1 bg-slate-800 border border-brand-500 rounded px-1.5 py-0 text-xs text-slate-200 focus:outline-none"
+                className="min-w-0 flex-1 border border-brand-500 rounded px-1.5 py-0 text-xs text-t-secondary focus:outline-none"
+                style={{ backgroundColor: 'var(--surface-1)' }}
                 autoFocus
               />
             ) : (
@@ -130,7 +132,7 @@ export function FileTree() {
                       setRenamingFile(filename);
                       setRenameValue(filename);
                     }}
-                    className="p-0.5 text-slate-500 hover:text-slate-300 rounded"
+                    className="p-0.5 text-t-faint hover:text-t-secondary rounded"
                     title="Rename"
                   >
                     <Pencil size={11} />
@@ -141,7 +143,7 @@ export function FileTree() {
                         e.stopPropagation();
                         handleDelete(filename);
                       }}
-                      className="p-0.5 text-slate-500 hover:text-rose-400 rounded"
+                      className="p-0.5 text-t-faint hover:text-rose-400 rounded"
                       title="Delete"
                     >
                       <Trash2 size={11} />
