@@ -1149,23 +1149,36 @@ app.post('/api/learn-ocaml/connect', async (req, res) => {
     }
 
     // Step 2: Validate token by fetching save.json — this is user-specific
-    // For invalid tokens: the server returns an HTTP error (400/403) → learnOcamlFetch throws
-    // For new valid tokens: the server returns 404 → learnOcamlFetch returns null (ok)
-    // For existing valid tokens: the server returns save data (ok)
     let nickname = null;
+    let save = null;
     try {
-      const save = await learnOcamlFetch(serverUrl, 'save.json', token);
+      save = await learnOcamlFetch(serverUrl, 'save.json', token);
       if (save && save.nickname) nickname = save.nickname;
     } catch (err) {
       // If save.json fails with an HTTP error, the token is invalid
       return res.status(401).json({ error: 'Invalid token — authentication failed. Please check your token.' });
     }
 
-    // Step 3: Also verify with exercise-index.json (best-effort, confirms server works)
-    try {
-      await learnOcamlFetch(serverUrl, 'exercise-index.json', token);
-    } catch {
-      // Non-critical — exercises may still load later
+    // Step 2b: If save.json returned 404 (null), the token could be a new valid
+    // token with no save data yet, or a completely non-existent token.
+    // The Learn OCaml server returns 404 for both cases, so we distinguish by
+    // attempting a sync round-trip: only registered tokens can persist data.
+    if (!save) {
+      try {
+        const minimalSave = { nickname: '', exercises: {} };
+        await learnOcamlFetch(serverUrl, 'sync', token, {
+          method: 'POST',
+          body: JSON.stringify(minimalSave),
+        });
+        // Re-fetch to confirm the data was actually persisted
+        const verifiedSave = await learnOcamlFetch(serverUrl, 'save.json', token);
+        if (!verifiedSave) {
+          return res.status(401).json({ error: 'Invalid token — this token is not registered on the server.' });
+        }
+        if (verifiedSave.nickname) nickname = verifiedSave.nickname;
+      } catch (err) {
+        return res.status(401).json({ error: 'Invalid token — authentication failed. Please check your token.' });
+      }
     }
 
     res.json({ version, nickname });
