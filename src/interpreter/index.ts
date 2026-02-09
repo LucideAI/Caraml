@@ -1,10 +1,11 @@
 import { Lexer } from './lexer';
 import { Parser } from './parser';
 import { Evaluator } from './evaluator';
+import type { EvaluatorOptions } from './evaluator';
 import type { ExecutionResult } from '../types';
 import { OCamlError } from './types';
 
-export function interpret(source: string): ExecutionResult {
+export function interpret(source: string, options?: EvaluatorOptions): ExecutionResult {
   const startTime = performance.now();
 
   try {
@@ -17,7 +18,7 @@ export function interpret(source: string): ExecutionResult {
     const ast = parser.parse();
 
     // Evaluate
-    const evaluator = new Evaluator();
+    const evaluator = new Evaluator(options);
     const result = evaluator.evaluate(ast);
 
     const executionTimeMs = performance.now() - startTime;

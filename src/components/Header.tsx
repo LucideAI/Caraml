@@ -25,6 +25,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName, rende
     toggleFileTree, toggleConsole, toggleMemoryPanel,
     setShowAuthModal, setShowShareModal, currentProject,
     editorFontSize, setEditorFontSize,
+    maxRecursionDepth, setMaxRecursionDepth,
     capabilities, learnOcaml,
     theme, toggleTheme,
   } = useStore();
@@ -166,10 +167,29 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName, rende
                       >+</button>
                     </div>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-t-secondary" title="Maximum recursion depth for the interpreter (100 - 100 000)">Recursion Limit</label>
+                    <input
+                      type="number"
+                      min={100}
+                      max={100000}
+                      step={500}
+                      value={maxRecursionDepth}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (!isNaN(v)) setMaxRecursionDepth(v);
+                      }}
+                      className="w-20 px-2 py-1 text-sm text-t-secondary rounded-lg text-center bg-surface-2 border-none focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                  </div>
                   <div className="pt-2 border-t border-ide-border space-y-2">
                     <div className="flex items-center gap-2 text-xs text-t-faint">
                       <Keyboard size={12} />
                       <span>Ctrl+Enter = Run | Ctrl+S = Save</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-t-faint">
+                      <Keyboard size={12} />
+                      <span>Del = Supprimer fichier</span>
                     </div>
                     {capabilities.ocamlformat && (
                       <div className="flex items-center gap-2 text-xs text-t-faint">

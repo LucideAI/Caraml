@@ -37,6 +37,8 @@ export interface UiSlice {
   memoryPanelWidth: number;
   fileTreeWidthMode: PanelWidthMode;
   memoryPanelWidthMode: PanelWidthMode;
+  maxRecursionDepth: number;
+  skipDeleteConfirmation: boolean;
   notifications: Notification[];
   toggleMemoryPanel: () => void;
   toggleFileTree: () => void;
@@ -44,11 +46,13 @@ export interface UiSlice {
   setShowAuthModal: (show: boolean) => void;
   setShowShareModal: (show: boolean) => void;
   setShowNewProjectModal: (show: boolean) => void;
-  addNotification: (type: Notification['type'], message: string) => void;
+  addNotification: (type: Notification['type'], message: string, options?: { action?: Notification['action']; duration?: number }) => void;
   removeNotification: (id: string) => void;
   setEditorFontSize: (size: number) => void;
   setConsoleFontSize: (size: number) => void;
   setConsoleHeight: (height: number) => void;
+  setMaxRecursionDepth: (depth: number) => void;
+  setSkipDeleteConfirmation: (skip: boolean) => void;
   hydrateUiPrefsFromUser: (user: User | null) => void;
   setFileTreeWidth: (width: number, mode?: PanelWidthMode) => void;
   setMemoryPanelWidth: (width: number, mode?: PanelWidthMode) => void;
@@ -69,6 +73,8 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
   memoryPanelWidth: DEFAULT_MEMORY_PANEL_WIDTH,
   fileTreeWidthMode: 'auto',
   memoryPanelWidthMode: 'auto',
+  maxRecursionDepth: 5_000,
+  skipDeleteConfirmation: false,
   notifications: [],
 
   toggleMemoryPanel: () => set((s) => ({ showMemoryPanel: !s.showMemoryPanel })),
@@ -78,12 +84,13 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
   setShowShareModal: (show) => set({ showShareModal: show }),
   setShowNewProjectModal: (show) => set({ showNewProjectModal: show }),
 
-  addNotification: (type, message) => {
+  addNotification: (type, message, options) => {
     const id = Math.random().toString(36).slice(2);
-    set((s) => ({ notifications: [...s.notifications, { id, type, message }] }));
+    const duration = options?.duration ?? 4000;
+    set((s) => ({ notifications: [...s.notifications, { id, type, message, action: options?.action }] }));
     setTimeout(() => {
       set((s) => ({ notifications: s.notifications.filter((n) => n.id !== id) }));
-    }, 4000);
+    }, duration);
   },
 
   removeNotification: (id) => {
@@ -93,6 +100,8 @@ export const createUiSlice: StateCreator<AppState, [], [], UiSlice> = (set, get)
   setEditorFontSize: (size) => set({ editorFontSize: size }),
   setConsoleFontSize: (size) => set({ consoleFontSize: size }),
   setConsoleHeight: (height) => set({ consoleHeight: clampConsoleHeight(height) }),
+  setMaxRecursionDepth: (depth) => set({ maxRecursionDepth: Math.max(100, Math.min(100_000, depth)) }),
+  setSkipDeleteConfirmation: (skip) => set({ skipDeleteConfirmation: skip }),
 
   hydrateUiPrefsFromUser: (user) => {
     const storedWidths = getStoredPanelWidths(user);

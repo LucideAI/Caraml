@@ -10,6 +10,10 @@ import { displayValue as standaloneDisplayValue } from './display';
 // OCaml Evaluator
 // ═══════════════════════════════════════════════════════════════════════════
 
+export interface EvaluatorOptions {
+  maxRecursionDepth?: number;
+}
+
 export class Evaluator {
   private env: Environment;
   private output: string[] = [];
@@ -21,12 +25,13 @@ export class Evaluator {
   private stepCount = 0;
   private maxSteps = 1_000_000;
   private recursionDepth = 0;
-  private maxRecursionDepth = 5_000;
+  private maxRecursionDepth: number;
   private startTime = 0;
   private maxExecutionTimeMs = 10_000; // 10 seconds wall-clock limit
   private declaredValues: { name: string; type: string; value: string }[] = [];
 
-  constructor() {
+  constructor(options?: EvaluatorOptions) {
+    this.maxRecursionDepth = options?.maxRecursionDepth ?? 5_000;
     this.env = new Environment(null, 'global');
     this.installStdlib();
   }
@@ -327,7 +332,7 @@ export class Evaluator {
       case 'pcons':
         if (val.tag !== 'list' || val.elements.length === 0) return false;
         return this.matchPattern(pat.head, val.elements[0], env) &&
-               this.matchPattern(pat.tail, { tag: 'list', elements: val.elements.slice(1) }, env);
+          this.matchPattern(pat.tail, { tag: 'list', elements: val.elements.slice(1) }, env);
       case 'pconstructor':
         if (val.tag !== 'constructor') return false;
         if (val.name !== pat.name) return false;
@@ -835,16 +840,16 @@ export class Evaluator {
 
   private isStdlibName(name: string): boolean {
     return name.startsWith('List.') || name.startsWith('Array.') || name.startsWith('String.') ||
-           name.startsWith('Char.') || name.startsWith('Hashtbl.') || name.startsWith('Buffer.') ||
-           ['print_string', 'print_int', 'print_float', 'print_char', 'print_endline', 'print_newline',
-            'string_of_int', 'string_of_float', 'int_of_string', 'float_of_string', 'int_of_float',
-            'float_of_int', 'char_of_int', 'int_of_char', 'string_of_bool', 'bool_of_string',
-            'String.length', 'String.sub', 'String.concat', 'String.make', 'String.uppercase_ascii',
-            'String.lowercase_ascii', 'String.contains',
-            'fst', 'snd', 'min', 'max', 'abs', 'abs_float', 'sqrt', 'succ', 'pred',
-            'failwith', 'invalid_arg', 'ignore',
-            'Some', 'None', 'Failure', 'Invalid_argument', 'Not_found', 'Exit',
-           ].includes(name);
+      name.startsWith('Char.') || name.startsWith('Hashtbl.') || name.startsWith('Buffer.') ||
+      ['print_string', 'print_int', 'print_float', 'print_char', 'print_endline', 'print_newline',
+        'string_of_int', 'string_of_float', 'int_of_string', 'float_of_string', 'int_of_float',
+        'float_of_int', 'char_of_int', 'int_of_char', 'string_of_bool', 'bool_of_string',
+        'String.length', 'String.sub', 'String.concat', 'String.make', 'String.uppercase_ascii',
+        'String.lowercase_ascii', 'String.contains',
+        'fst', 'snd', 'min', 'max', 'abs', 'abs_float', 'sqrt', 'succ', 'pred',
+        'failwith', 'invalid_arg', 'ignore',
+        'Some', 'None', 'Failure', 'Invalid_argument', 'Not_found', 'Exit',
+      ].includes(name);
   }
 
   // ── Standard Library ────────────────────────────────────────────────────
@@ -1139,18 +1144,22 @@ export class Evaluator {
 
     env.set('List.exists', mkBuiltin("('a -> bool) -> 'a list -> bool", 2, (args) => {
       if (args[1].tag !== 'list') throw new RuntimeError('List.exists: expected list');
-      return { tag: 'bool', value: args[1].elements.some(e => {
-        const v = this.applyOne(args[0], e, 0);
-        return v.tag === 'bool' && v.value;
-      })};
+      return {
+        tag: 'bool', value: args[1].elements.some(e => {
+          const v = this.applyOne(args[0], e, 0);
+          return v.tag === 'bool' && v.value;
+        })
+      };
     }));
 
     env.set('List.for_all', mkBuiltin("('a -> bool) -> 'a list -> bool", 2, (args) => {
       if (args[1].tag !== 'list') throw new RuntimeError('List.for_all: expected list');
-      return { tag: 'bool', value: args[1].elements.every(e => {
-        const v = this.applyOne(args[0], e, 0);
-        return v.tag === 'bool' && v.value;
-      })};
+      return {
+        tag: 'bool', value: args[1].elements.every(e => {
+          const v = this.applyOne(args[0], e, 0);
+          return v.tag === 'bool' && v.value;
+        })
+      };
     }));
 
     env.set('List.init', mkBuiltin("int -> (int -> 'a) -> 'a list", 2, (args) => {

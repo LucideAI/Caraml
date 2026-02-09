@@ -57,6 +57,8 @@ export function useCodeRunner(getCode: () => string | null) {
     setIsRunning(true);
 
     const caps = useStore.getState().capabilities;
+    const { maxRecursionDepth } = useStore.getState();
+    const evalOpts = { maxRecursionDepth };
 
     let controller: AbortController | null = null;
 
@@ -70,7 +72,7 @@ export function useCodeRunner(getCode: () => string | null) {
       fallbackTimerRef.current = setTimeout(() => {
         if (runSeqRef.current !== runSeq) return;
         try {
-          const result = interpret(code);
+          const result = interpret(code, evalOpts);
           setExecutionResult(result);
         } catch (err: unknown) {
           if (runSeqRef.current !== runSeq) return;
@@ -106,7 +108,7 @@ export function useCodeRunner(getCode: () => string | null) {
           // Also run the browser interpreter for memory visualization
           let memoryState: MemoryState = EMPTY_MEMORY;
           try {
-            const localResult = interpret(code);
+            const localResult = interpret(code, evalOpts);
             memoryState = localResult.memoryState;
           } catch {
             // Memory visualization is best-effort
