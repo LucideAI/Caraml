@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useStore } from '../store';
+import { Modal } from './Modal';
 import {
-  X, Globe, Key, Loader2, Server, Unplug, AlertCircle, CheckCircle2,
+  Globe, Key, Loader2, Server, Unplug, AlertCircle, CheckCircle2,
   GraduationCap, Info,
 } from 'lucide-react';
 
@@ -17,8 +18,6 @@ export function LearnOcamlModal() {
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
-
-  if (!learnOcaml.showConnectModal) return null;
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +42,8 @@ export function LearnOcamlModal() {
     setIsConnecting(true);
     try {
       await learnOcamlConnect(serverUrl.trim(), token.trim().toUpperCase());
-    } catch (err: any) {
-      setError(err.message || 'Failed to connect');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to connect');
     } finally {
       setIsConnecting(false);
     }
@@ -56,31 +55,15 @@ export function LearnOcamlModal() {
   };
 
   return (
-    <div className="modal-overlay" onClick={() => setShowLearnOcamlModal(false)}>
-      <div
-        className="modal-content w-full max-w-lg p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-              <GraduationCap size={20} className="text-orange-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-t-primary">Learn OCaml</h2>
-              <p className="text-xs text-t-faint">Connect to your university instance</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowLearnOcamlModal(false)}
-            className="btn-icon"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Connected state */}
+    <Modal
+      isOpen={learnOcaml.showConnectModal}
+      onClose={() => setShowLearnOcamlModal(false)}
+      title="Learn OCaml"
+      subtitle="Connect to your university instance"
+      icon={<div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center"><GraduationCap size={20} className="text-orange-400" /></div>}
+      className="max-w-lg"
+    >
+      <div className="p-6 pt-4">
         {learnOcaml.connection ? (
           <div className="space-y-4">
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -128,7 +111,7 @@ export function LearnOcamlModal() {
           /* Connection form */
           <form onSubmit={handleConnect} className="space-y-4">
             {/* Info box */}
-            <div className="p-3 border rounded-lg text-xs text-t-muted leading-relaxed" style={{ backgroundColor: 'var(--surface-1)', borderColor: 'var(--surface-2)' }}>
+            <div className="p-3 border border-surface-2 rounded-lg text-xs text-t-muted leading-relaxed bg-surface-1">
               <p>
                 Connect your Learn OCaml account to synchronize exercises, submit answers,
                 and view your grades directly from Caraml. You'll need your server URL
@@ -207,6 +190,6 @@ export function LearnOcamlModal() {
           </form>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

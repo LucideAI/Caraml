@@ -78,8 +78,7 @@ export function FileTree() {
                 if (e.key === 'Escape') setIsCreating(false);
               }}
               placeholder="filename.ml"
-              className="min-w-0 flex-1 border border-brand-500 rounded px-1.5 py-0.5 text-xs text-t-secondary focus:outline-none"
-              style={{ backgroundColor: 'var(--surface-1)' }}
+              className="min-w-0 flex-1 border border-brand-500 rounded px-1.5 py-0.5 text-xs text-t-secondary focus:outline-none bg-surface-1"
               autoFocus
             />
             <button onClick={handleCreate} className="text-emerald-400 hover:text-emerald-300">
@@ -114,8 +113,7 @@ export function FileTree() {
                   if (e.key === 'Escape') setRenamingFile(null);
                 }}
                 onBlur={() => handleRename(filename)}
-                className="min-w-0 flex-1 border border-brand-500 rounded px-1.5 py-0 text-xs text-t-secondary focus:outline-none"
-                style={{ backgroundColor: 'var(--surface-1)' }}
+                className="min-w-0 flex-1 border border-brand-500 rounded px-1.5 py-0 text-xs text-t-secondary focus:outline-none bg-surface-1"
                 autoFocus
               />
             ) : (

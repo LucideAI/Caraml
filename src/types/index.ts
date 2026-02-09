@@ -150,9 +150,10 @@ export interface LearnOcamlExercise {
 }
 
 export interface LearnOcamlGradeResult {
-  grade: number;      // 0-100
-  max_grade: number;  // typically 100
+  grade: number | null; // 0-100 or null if grading unavailable
+  max_grade: number;    // typically 100
   report: LearnOcamlReportItem[];
+  message?: string;     // informational message (e.g. grading unavailable)
 }
 
 export interface LearnOcamlReportItem {

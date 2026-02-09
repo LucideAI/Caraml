@@ -31,6 +31,19 @@
   --scrollbar-thumb-hover: #475569;
   --selection-bg: rgba(6, 182, 212, 0.3);
 
+  --semantic-success: #34d399;
+  --semantic-success-bg: rgba(16, 185, 129, 0.15);
+  --semantic-error: #fb7185;
+  --semantic-error-bg: rgba(244, 63, 94, 0.15);
+  --semantic-warning: #fbbf24;
+  --semantic-warning-bg: rgba(245, 158, 11, 0.15);
+  --semantic-info: #22d3ee;
+  --semantic-info-bg: rgba(6, 182, 212, 0.15);
+
+  --code-inline: #38bdf8;
+  --code-inline-bg: rgba(56, 189, 248, 0.1);
+  --link-color: #38bdf8;
+
   --monaco-bg: #0a0e1a;
   --monaco-gutter: #0f1629;
 }
@@ -61,6 +74,19 @@
   --scrollbar-thumb: #cbd5e1;
   --scrollbar-thumb-hover: #94a3b8;
   --selection-bg: rgba(6, 182, 212, 0.2);
+
+  --semantic-success: #059669;
+  --semantic-success-bg: rgba(16, 185, 129, 0.12);
+  --semantic-error: #e11d48;
+  --semantic-error-bg: rgba(244, 63, 94, 0.12);
+  --semantic-warning: #d97706;
+  --semantic-warning-bg: rgba(245, 158, 11, 0.12);
+  --semantic-info: #0891b2;
+  --semantic-info-bg: rgba(6, 182, 212, 0.12);
+
+  --code-inline: #0369a1;
+  --code-inline-bg: rgba(3, 105, 161, 0.08);
+  --link-color: #0369a1;
 
   --monaco-bg: #ffffff;
   --monaco-gutter: #f8fafc;
@@ -202,15 +228,21 @@
   }
 
   .badge-success {
-    @apply badge bg-emerald-500/20 text-emerald-400;
+    @apply badge;
+    background-color: var(--semantic-success-bg);
+    color: var(--semantic-success);
   }
 
   .badge-error {
-    @apply badge bg-rose-500/20 text-rose-400;
+    @apply badge;
+    background-color: var(--semantic-error-bg);
+    color: var(--semantic-error);
   }
 
   .badge-info {
-    @apply badge bg-brand-500/20 text-brand-400;
+    @apply badge;
+    background-color: var(--semantic-info-bg);
+    color: var(--semantic-info);
   }
 
   .modal-overlay {
@@ -338,36 +370,60 @@
 }
 
 /* ── Learn OCaml Exercise Description ─────────────────────────────────── */
+.learn-ocaml-description {
+  @apply text-[13px] leading-[1.7] text-t-secondary;
+}
+
 .learn-ocaml-description h1,
 .learn-ocaml-description h2,
 .learn-ocaml-description h3,
 .learn-ocaml-description h4 {
-  @apply font-semibold text-t-secondary mt-3 mb-1.5;
+  @apply font-semibold text-t-primary;
 }
 
-.learn-ocaml-description h1 { @apply text-lg; }
-.learn-ocaml-description h2 { @apply text-base; }
-.learn-ocaml-description h3 { @apply text-sm; }
+.learn-ocaml-description h1 { @apply text-base mt-4 mb-2; }
+.learn-ocaml-description h2 { @apply text-[15px] mt-3.5 mb-1.5; }
+.learn-ocaml-description h3 { @apply text-[13px] mt-3 mb-1; }
 
 .learn-ocaml-description p {
-  @apply text-sm text-t-tertiary leading-relaxed mb-2;
+  @apply mb-2.5;
+}
+
+.learn-ocaml-description strong {
+  @apply font-semibold text-t-primary;
+}
+
+.learn-ocaml-description em {
+  @apply italic text-t-secondary;
 }
 
 .learn-ocaml-description ul,
 .learn-ocaml-description ol {
-  @apply text-sm text-t-tertiary ml-4 mb-2 space-y-1;
+  @apply ml-4 mb-2.5 space-y-1;
 }
 
 .learn-ocaml-description ul { list-style-type: disc; }
 .learn-ocaml-description ol { list-style-type: decimal; }
 
+.learn-ocaml-description ul ul,
+.learn-ocaml-description ol ol,
+.learn-ocaml-description ul ol,
+.learn-ocaml-description ol ul {
+  @apply ml-4 mt-1 mb-0;
+}
+
+.learn-ocaml-description li::marker {
+  @apply text-t-faint;
+}
+
 .learn-ocaml-description code {
-  @apply text-xs font-mono text-brand-400 px-1 py-0.5 rounded;
-  background-color: var(--surface-1);
+  @apply text-xs font-mono px-1.5 py-0.5 rounded;
+  color: var(--code-inline);
+  background-color: var(--code-inline-bg);
 }
 
 .learn-ocaml-description pre {
-  @apply text-xs font-mono text-t-tertiary p-2 rounded-lg mb-2 overflow-auto;
+  @apply text-xs font-mono text-t-tertiary p-3 rounded-lg mb-3 overflow-auto border border-ide-border;
   background-color: var(--surface-1);
 }
 
@@ -376,25 +432,36 @@
 }
 
 .learn-ocaml-description a {
-  @apply text-brand-400 underline hover:text-brand-300;
+  @apply underline transition-colors;
+  color: var(--link-color);
+  text-decoration-color: color-mix(in srgb, var(--link-color) 30%, transparent);
+}
+
+.learn-ocaml-description a:hover {
+  text-decoration-color: var(--link-color);
+}
+
+.learn-ocaml-description hr {
+  @apply border-none h-px my-4;
+  background-color: var(--ide-border);
 }
 
 .learn-ocaml-description table {
-  @apply w-full text-sm border-collapse mb-2;
+  @apply w-full text-[13px] border-collapse mb-3;
 }
 
 .learn-ocaml-description th {
-  @apply text-left text-xs font-semibold text-t-muted py-1 px-2 border-b border-ide-border;
+  @apply text-left text-xs font-semibold text-t-muted py-1.5 px-2 border-b border-ide-border;
 }
 
 .learn-ocaml-description td {
-  @apply text-sm text-t-tertiary py-1 px-2 border-b border-ide-border;
+  @apply py-1.5 px-2 border-b border-ide-border;
 }
 
 .learn-ocaml-description img {
-  @apply max-w-full rounded-lg my-2;
+  @apply max-w-full rounded-lg my-3;
 }
 
 .learn-ocaml-description blockquote {
-  @apply border-l-2 border-brand-500 pl-3 text-sm text-t-muted italic my-2;
+  @apply border-l-2 border-brand-500/50 pl-3 py-0.5 my-3 text-t-muted italic;
 }
