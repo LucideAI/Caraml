@@ -43,6 +43,16 @@ export default {
           faint: 'var(--text-faint)',
           ghost: 'var(--text-ghost)',
         },
+        semantic: {
+          success: 'var(--semantic-success)',
+          'success-bg': 'var(--semantic-success-bg)',
+          error: 'var(--semantic-error)',
+          'error-bg': 'var(--semantic-error-bg)',
+          warning: 'var(--semantic-warning)',
+          'warning-bg': 'var(--semantic-warning-bg)',
+          info: 'var(--semantic-info)',
+          'info-bg': 'var(--semantic-info-bg)',
+        },
       },
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', 'monospace'],

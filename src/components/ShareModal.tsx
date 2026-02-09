@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { api } from '../services/api';
-import { X, Link, Copy, Check, Globe, Lock, ExternalLink, Loader2 } from 'lucide-react';
+import { Modal } from './Modal';
+import { Link, Copy, Check, Globe, Lock, ExternalLink, Loader2 } from 'lucide-react';
 
 export function ShareModal() {
   const { showShareModal, setShowShareModal, currentProject, addNotification } = useStore();
@@ -19,7 +20,7 @@ export function ShareModal() {
     }
   }, [currentProject]);
 
-  if (!showShareModal || !currentProject) return null;
+  if (!currentProject) return null;
 
   const handleShare = async () => {
     setIsLoading(true);
@@ -32,8 +33,8 @@ export function ShareModal() {
       navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err: any) {
-      addNotification('error', err.message || 'Failed to share');
+    } catch (err: unknown) {
+      addNotification('error', err instanceof Error ? err.message : 'Failed to share');
     } finally {
       setIsLoading(false);
     }
@@ -46,8 +47,8 @@ export function ShareModal() {
       setIsPublic(false);
       setShareUrl('');
       addNotification('info', 'Project is now private');
-    } catch (err: any) {
-      addNotification('error', err.message || 'Failed to unshare');
+    } catch (err: unknown) {
+      addNotification('error', err instanceof Error ? err.message : 'Failed to unshare');
     } finally {
       setIsLoading(false);
     }
@@ -60,26 +61,17 @@ export function ShareModal() {
   };
 
   return (
-    <div className="modal-overlay" onClick={() => setShowShareModal(false)}>
-      <div className="modal-content w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-brand-500/20 flex items-center justify-center">
-              <Link size={20} className="text-brand-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-t-primary">Share Project</h2>
-              <p className="text-sm text-t-muted">"{currentProject.name}"</p>
-            </div>
-          </div>
-          <button onClick={() => setShowShareModal(false)} className="btn-icon">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="px-6 pb-6 space-y-4">
+    <Modal
+      isOpen={showShareModal && !!currentProject}
+      onClose={() => setShowShareModal(false)}
+      title="Share Project"
+      subtitle={currentProject ? `"${currentProject.name}"` : ''}
+      icon={<div className="w-10 h-10 rounded-xl bg-brand-500/20 flex items-center justify-center"><Link size={20} className="text-brand-400" /></div>}
+      className="max-w-lg"
+    >
+        <div className="px-6 pb-6 pt-4 space-y-4">
           {/* Status */}
-          <div className="flex items-center gap-3 p-3 rounded-lg border" style={{ backgroundColor: 'var(--surface-1)', borderColor: 'var(--surface-2)' }}>
+          <div className="flex items-center gap-3 p-3 rounded-lg border border-surface-2 bg-surface-1">
             {isPublic ? (
               <>
                 <Globe size={18} className="text-emerald-400" />
@@ -135,7 +127,6 @@ export function ShareModal() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }

@@ -1,25 +1,26 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MonacoEditor from '@monaco-editor/react';
 import { useStore } from '../store';
 import { Console } from '../components/Console';
+import { Header } from '../components/Header';
+import { MemoryViewer } from '../components/MemoryViewer';
+import { IDELayout } from '../components/IDELayout';
 import { api } from '../services/api';
-import { interpret } from '../interpreter';
 import { registerOcamlLanguage } from '../components/Editor';
+import { useCodeRunner } from '../hooks/useCodeRunner';
+import { useResizablePanel } from '../hooks/useResizablePanel';
+import {
+  DEFAULT_DESCRIPTION_WIDTH,
+  PANEL_LIMITS,
+} from '../utils/panelSizing';
 import {
   ArrowLeft, Loader2, Play, CheckCircle2, AlertCircle,
   GraduationCap, FileText, Code, Upload, Trophy,
   ChevronDown, ChevronUp, Clock, UploadCloud,
-  PanelBottomClose, PanelBottomOpen,
+  PanelBottomClose, PanelBottomOpen, PanelRightClose, PanelRightOpen,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
-
-function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException) return error.name === 'AbortError';
-  if (typeof error === 'object' && error !== null && 'name' in error) {
-    return (error as { name?: string }).name === 'AbortError';
-  }
-  return false;
-}
 
 export function LearnOcamlExercisePage() {
   const params = useParams();
@@ -28,9 +29,11 @@ export function LearnOcamlExercisePage() {
   const navigate = useNavigate();
   const {
     learnOcaml, learnOcamlLoadExercise, learnOcamlSyncAnswer, learnOcamlGrade,
-    setExecutionResult, setIsRunning, isRunning, executionResult,
+    isRunning,
     capabilities, loadCapabilities, addNotification,
     editorFontSize, consoleFontSize,
+    showMemoryPanel, memoryPanelWidth, setMemoryPanelWidth,
+    consoleHeight, setConsoleHeight,
   } = useStore();
 
   const [code, setCode] = useState('');
@@ -40,11 +43,50 @@ export function LearnOcamlExercisePage() {
   const [showGradePanel, setShowGradePanel] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
+  const [descriptionWidth, setDescriptionWidth] = useState(DEFAULT_DESCRIPTION_WIDTH);
+  const [descSplitRatio, setDescSplitRatio] = useState(0.5);
+  const descSplitDragRef = useRef<{ startY: number; startRatio: number; panelHeight: number } | null>(null);
+  const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const autoSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasSetInitialCode = useRef(false);
-  const runAbortRef = useRef<AbortController | null>(null);
-  const fallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const runSeqRef = useRef(0);
+  const codeRef = useRef(code);
+  codeRef.current = code;
+  const layoutRef = useRef<HTMLDivElement | null>(null);
+
+  const panels = useMemo(() => [
+    { kind: 'description' as const, side: 'left' as const, width: descriptionWidth, setWidth: (w: number) => setDescriptionWidth(w), visible: showDescription },
+    { kind: 'memory' as const, side: 'right' as const, width: memoryPanelWidth, setWidth: setMemoryPanelWidth, visible: showMemoryPanel },
+  ], [descriptionWidth, showDescription, memoryPanelWidth, showMemoryPanel, setMemoryPanelWidth]);
+
+  const { startResize } = useResizablePanel({ layoutRef, panels });
+
+  const startDescSplitResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const panelHeight = leftPanelRef.current?.clientHeight ?? 400;
+    descSplitDragRef.current = { startY: e.clientY, startRatio: descSplitRatio, panelHeight };
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const drag = descSplitDragRef.current;
+      if (!drag) return;
+      const delta = event.clientY - drag.startY;
+      const ratioDelta = delta / drag.panelHeight;
+      const next = Math.min(0.85, Math.max(0.15, drag.startRatio + ratioDelta));
+      setDescSplitRatio(next);
+    };
+
+    const handlePointerUp = () => {
+      descSplitDragRef.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
+  }, [descSplitRatio]);
 
   const exercise = learnOcaml.currentExercise;
   const gradeResult = learnOcaml.lastGradeResult;
@@ -82,100 +124,16 @@ export function LearnOcamlExercisePage() {
 
   // ── Run Code ───────────────────────────────────────────────────────────
 
-  const handleRun = useCallback(async () => {
-    if (!code) return;
+  const getCode = useCallback(() => {
+    const c = codeRef.current;
+    if (!c) return null;
+    const ex = useStore.getState().learnOcaml.currentExercise;
+    return ex?.prelude
+      ? `${ex.prelude}\n\n(* === Your code === *)\n${c}`
+      : c;
+  }, []);
 
-    if (runAbortRef.current) {
-      runAbortRef.current.abort();
-      runAbortRef.current = null;
-    }
-    if (fallbackTimerRef.current) {
-      clearTimeout(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
-    }
-
-    const runSeq = ++runSeqRef.current;
-    setIsRunning(true);
-
-    // Prepend prelude if available
-    const fullCode = exercise?.prelude
-      ? `${exercise.prelude}\n\n(* === Your code === *)\n${code}`
-      : code;
-
-    let controller: AbortController | null = null;
-    const finalizeIfCurrent = () => {
-      if (runSeqRef.current === runSeq) {
-        setIsRunning(false);
-      }
-    };
-    const scheduleFallback = () => {
-      fallbackTimerRef.current = setTimeout(() => {
-        if (runSeqRef.current !== runSeq) return;
-        try {
-          const result = interpret(code);
-          setExecutionResult(result);
-        } catch (err: any) {
-          if (runSeqRef.current !== runSeq) return;
-          setExecutionResult({
-            output: '',
-            values: [],
-            errors: [{ line: 0, column: 0, message: err.message || 'Unknown error' }],
-            memoryState: { stack: [], heap: [], environment: [], typeDefinitions: [] },
-            executionTimeMs: 0,
-          });
-        } finally {
-          if (fallbackTimerRef.current) {
-            clearTimeout(fallbackTimerRef.current);
-            fallbackTimerRef.current = null;
-          }
-          finalizeIfCurrent();
-        }
-      }, 10);
-    };
-
-    try {
-      if (capabilities.ocaml) {
-        controller = new AbortController();
-        runAbortRef.current = controller;
-        const toplevelResult = await api.runToplevel(fullCode, controller.signal);
-
-        if (runAbortRef.current === controller) {
-          runAbortRef.current = null;
-        }
-        if (runSeqRef.current !== runSeq) return;
-
-        if (toplevelResult.backend) {
-          let memoryState: import('../types').MemoryState = { stack: [], heap: [], environment: [], typeDefinitions: [] };
-          try {
-            const localResult = interpret(code);
-            memoryState = localResult.memoryState;
-          } catch {}
-
-          setExecutionResult({
-            output: toplevelResult.output || '',
-            values: toplevelResult.values || [],
-            errors: toplevelResult.errors || [],
-            memoryState,
-            executionTimeMs: toplevelResult.executionTimeMs || 0,
-          });
-          finalizeIfCurrent();
-          return;
-        }
-      }
-
-      if (runSeqRef.current !== runSeq) return;
-      scheduleFallback();
-    } catch (err: unknown) {
-      if (runAbortRef.current === controller) {
-        runAbortRef.current = null;
-      }
-      if (isAbortError(err)) {
-        return;
-      }
-      if (runSeqRef.current !== runSeq) return;
-      scheduleFallback();
-    }
-  }, [code, capabilities, exercise, setExecutionResult, setIsRunning]);
+  const { handleRun } = useCodeRunner(getCode);
 
   // ── Sync to Learn OCaml ────────────────────────────────────────────────
 
@@ -235,21 +193,6 @@ export function LearnOcamlExercisePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleRun, handleSync, handleGrade]);
 
-  useEffect(() => {
-    return () => {
-      runSeqRef.current += 1;
-      if (runAbortRef.current) {
-        runAbortRef.current.abort();
-        runAbortRef.current = null;
-      }
-      if (fallbackTimerRef.current) {
-        clearTimeout(fallbackTimerRef.current);
-        fallbackTimerRef.current = null;
-      }
-      setIsRunning(false);
-    };
-  }, [setIsRunning]);
-
   // ── Loading State ──────────────────────────────────────────────────────
 
   if (learnOcaml.isLoadingExercise || !exercise) {
@@ -267,248 +210,284 @@ export function LearnOcamlExercisePage() {
 
   return (
     <div className="h-screen flex flex-col bg-ide-bg overflow-hidden">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="h-12 flex items-center justify-between px-3 bg-ide-sidebar border-b border-ide-border shrink-0 z-40">
-        {/* Left */}
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/learn-ocaml')} className="btn-icon" title="Back to exercises">
-            <ArrowLeft size={18} />
-          </button>
-          <GraduationCap size={18} className="text-orange-400" />
-          <span className="text-sm font-medium text-t-secondary truncate max-w-[300px]">
-            {exercise.title || decodedId}
-          </span>
-          {currentGrade !== null && currentGrade !== undefined && (
-            <span
-              className={`badge ${
-                currentGrade >= 100
-                  ? 'badge-success'
-                  : currentGrade > 0
-                  ? 'bg-amber-500/20 text-amber-400'
-                  : 'badge-error'
-              }`}
-            >
-              {Math.round(currentGrade)}%
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <Header
+        mode="custom"
+        renderLeft={
+          <>
+            <button onClick={() => navigate('/learn-ocaml')} className="btn-icon" title="Back to exercises">
+              <ArrowLeft size={18} />
+            </button>
+            <GraduationCap size={18} className="text-orange-400" />
+            <span className="text-sm font-medium text-t-secondary truncate max-w-[300px]">
+              {exercise.title || decodedId}
             </span>
-          )}
-          {isSaving && (
-            <span className="flex items-center gap-1 text-xs text-brand-400">
-              <UploadCloud size={12} className="animate-pulse" />
-              Syncing...
-            </span>
-          )}
-        </div>
-
-        {/* Center Controls */}
-        <div className="flex items-center gap-1">
-          <button onClick={handleRun} disabled={isRunning} className="btn-primary btn-sm gap-1.5" title="Run (Ctrl+Enter)">
-            {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            <span className="hidden sm:inline">Run</span>
-          </button>
-          <button onClick={() => handleSync(true)} disabled={isSaving} className="btn-secondary btn-sm gap-1.5" title="Sync to Learn OCaml (Ctrl+S)">
-            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-            <span className="hidden sm:inline">Sync</span>
-          </button>
-          <button
-            onClick={handleGrade}
-            disabled={learnOcaml.isGrading}
-            className="btn btn-sm gap-1.5 bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500 shadow-lg shadow-orange-500/20"
-            title="Grade (Ctrl+Shift+G)"
-          >
-            {learnOcaml.isGrading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Trophy size={14} />
+            {currentGrade !== null && currentGrade !== undefined && (
+              <span
+                className={`badge ${
+                  currentGrade >= 100
+                    ? 'badge-success'
+                    : currentGrade > 0
+                    ? 'bg-amber-500/20 text-amber-400'
+                    : 'badge-error'
+                }`}
+              >
+                {Math.round(currentGrade)}%
+              </span>
             )}
-            <span className="hidden sm:inline">Grade</span>
-          </button>
-
-          <div className="w-px h-6 bg-ide-border mx-1" />
-
-          <button
-            onClick={() => setShowConsole(!showConsole)}
-            className={`btn-icon ${showConsole ? 'text-brand-400' : ''}`}
-            title="Toggle Console"
-          >
-            {showConsole ? <PanelBottomClose size={16} /> : <PanelBottomOpen size={16} />}
-          </button>
-        </div>
-
-        {/* Right */}
-        <div className="flex items-center gap-2">
-          {lastSyncTime && (
+            {isSaving && (
+              <span className="flex items-center gap-1 text-xs text-brand-400">
+                <UploadCloud size={12} className="animate-pulse" />
+                Syncing...
+              </span>
+            )}
+          </>
+        }
+        renderCenter={
+          <>
+            <button onClick={handleRun} disabled={isRunning} className="btn-primary btn-sm gap-1.5" title="Run (Ctrl+Enter)">
+              {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+              <span className="hidden sm:inline">Run</span>
+            </button>
+            <button onClick={() => handleSync(true)} disabled={isSaving} className="btn-secondary btn-sm gap-1.5" title="Sync to Learn OCaml (Ctrl+S)">
+              {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+              <span className="hidden sm:inline">Sync</span>
+            </button>
+            <button
+              onClick={handleGrade}
+              disabled={learnOcaml.isGrading}
+              className="btn btn-sm gap-1.5 bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500 shadow-lg shadow-orange-500/20"
+              title="Grade (Ctrl+Shift+G)"
+            >
+              {learnOcaml.isGrading ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Trophy size={14} />
+              )}
+              <span className="hidden sm:inline">Grade</span>
+            </button>
+            <div className="w-px h-6 bg-ide-border mx-1" />
+            <button
+              onClick={() => setShowDescription(!showDescription)}
+              className={`btn-icon ${showDescription ? 'text-brand-400' : ''}`}
+              title="Toggle Description"
+            >
+              {showDescription ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
+            </button>
+            <button
+              onClick={() => setShowConsole(!showConsole)}
+              className={`btn-icon ${showConsole ? 'text-brand-400' : ''}`}
+              title="Toggle Console"
+            >
+              {showConsole ? <PanelBottomClose size={16} /> : <PanelBottomOpen size={16} />}
+            </button>
+            <button
+              onClick={() => useStore.getState().toggleMemoryPanel()}
+              className={`btn-icon ${showMemoryPanel ? 'text-brand-400' : ''}`}
+              title="Toggle Memory"
+            >
+              {showMemoryPanel ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
+            </button>
+          </>
+        }
+        renderRight={
+          lastSyncTime ? (
             <span className="text-xs text-t-faint hidden md:flex items-center gap-1">
               <Clock size={10} />
               Synced {lastSyncTime.toLocaleTimeString()}
             </span>
-          )}
-        </div>
-      </header>
+          ) : undefined
+        }
+      />
 
       {/* ── Main Content ────────────────────────────────────────────────── */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel: Description + Prelude + Grade */}
-        <div className="w-80 shrink-0 border-r border-ide-border flex flex-col overflow-hidden bg-ide-panel">
-          {/* Description Section */}
-          <div className="border-b border-ide-border">
-            <button
-              onClick={() => setShowDescription(!showDescription)}
-              className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider hover:bg-ide-hover transition-colors"
-            >
-              <div className="flex items-center gap-2">
-                <FileText size={12} />
-                Description
+      <IDELayout
+        layoutRef={layoutRef}
+        showLeftPanel={showDescription}
+        leftPanelWidth={descriptionWidth}
+        onLeftHandlePointerDown={startResize('description')}
+        leftPanel={
+          <div ref={leftPanelRef} className="flex flex-col h-full overflow-hidden bg-ide-panel">
+            {/* ── Top: Description + Prelude ── */}
+            <div className="overflow-auto" style={{ height: `${descSplitRatio * 100}%` }}>
+              {/* Description Section */}
+              <div className="border-b border-ide-border">
+                <button
+                  onClick={() => setShowDescription(!showDescription)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider hover:bg-ide-hover transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText size={12} />
+                    Description
+                  </div>
+                  {showDescription ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                </button>
+                <div
+                  className="px-3 pb-3 text-sm text-t-secondary leading-relaxed overflow-auto learn-ocaml-description"
+                  dangerouslySetInnerHTML={{
+                    __html: exercise.description || '<p class="text-t-faint">No description available.</p>',
+                  }}
+                />
               </div>
-              {showDescription ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-            {showDescription && (
-              <div
-                className="px-3 pb-3 text-sm text-t-secondary leading-relaxed overflow-auto max-h-64 learn-ocaml-description"
-                dangerouslySetInnerHTML={{
-                  __html: exercise.description || '<p class="text-t-faint">No description available.</p>',
-                }}
-              />
-            )}
-          </div>
 
-          {/* Prelude Section */}
-          {exercise.prelude && (
-            <div className="border-b border-ide-border">
-              <button
-                onClick={() => setShowPrelude(!showPrelude)}
-                className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider hover:bg-ide-hover transition-colors"
-              >
-                <div className="flex items-center gap-2">
-                  <Code size={12} />
-                  Prelude (read-only)
+              {/* Prelude Section */}
+              {exercise.prelude && (
+                <div className="border-b border-ide-border">
+                  <button
+                    onClick={() => setShowPrelude(!showPrelude)}
+                    className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider hover:bg-ide-hover transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Code size={12} />
+                      Prelude (read-only)
+                    </div>
+                    {showPrelude ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                  {showPrelude && (
+                    <pre className="px-3 pb-3 text-xs text-t-muted font-mono overflow-auto leading-relaxed whitespace-pre-wrap">
+                      {exercise.prelude}
+                    </pre>
+                  )}
                 </div>
-                {showPrelude ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-              </button>
-              {showPrelude && (
-                <pre className="px-3 pb-3 text-xs text-t-muted font-mono overflow-auto max-h-48 leading-relaxed whitespace-pre-wrap">
-                  {exercise.prelude}
-                </pre>
               )}
             </div>
-          )}
 
-          {/* Grade Result Panel */}
-          <div className="flex-1 overflow-auto">
-            <div className="px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider flex items-center gap-2">
-              <Trophy size={12} />
-              Grade Report
-            </div>
+            {/* ── Vertical resize handle ── */}
+            <div
+              className="shrink-0 bg-ide-border/70 hover:bg-brand-500/40 transition-colors touch-none cursor-row-resize"
+              style={{ height: '6px' }}
+              onPointerDown={startDescSplitResize}
+            />
 
-            {learnOcaml.isGrading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="flex flex-col items-center gap-2">
-                  <Loader2 size={24} className="animate-spin text-orange-400" />
-                  <p className="text-xs text-t-faint">Grading...</p>
-                </div>
+            {/* ── Bottom: Grade Report ── */}
+            <div className="flex-1 min-h-0 overflow-auto">
+              <div className="px-3 py-2 text-xs font-semibold text-t-muted uppercase tracking-wider flex items-center gap-2">
+                <Trophy size={12} />
+                Grade Report
               </div>
-            ) : gradeResult ? (
-              <div className="px-3 pb-3 space-y-3">
-                {/* Score */}
-                <div
-                  className={`p-3 rounded-lg border ${
-                    gradeResult.grade !== null && gradeResult.grade >= 100
-                      ? 'bg-emerald-500/10 border-emerald-500/20'
-                      : gradeResult.grade !== null && gradeResult.grade > 0
-                      ? 'bg-amber-500/10 border-amber-500/20'
-                      : 'bg-rose-500/10 border-rose-500/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-t-secondary">Score</span>
-                    <span
-                      className={`text-lg font-bold ${
-                        gradeResult.grade !== null && gradeResult.grade >= 100
-                          ? 'text-emerald-400'
-                          : gradeResult.grade !== null && gradeResult.grade > 0
-                          ? 'text-amber-400'
-                          : 'text-rose-400'
-                      }`}
-                    >
-                      {gradeResult.grade ?? 0}/{gradeResult.max_grade}
-                    </span>
+
+              {learnOcaml.isGrading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 size={24} className="animate-spin text-orange-400" />
+                    <p className="text-xs text-t-faint">Grading...</p>
                   </div>
-                  {gradeResult.grade !== null && gradeResult.grade >= 100 && (
-                    <div className="flex items-center gap-1 mt-1 text-xs text-emerald-400">
-                      <CheckCircle2 size={12} />
-                      Perfect score!
+                </div>
+              ) : gradeResult ? (
+                <div className="px-3 pb-3 space-y-3">
+                  {/* Message when grading unavailable */}
+                  {gradeResult.grade === null && gradeResult.report.length === 0 && (
+                    <div className="p-3 rounded-lg border bg-amber-500/10 border-amber-500/20 flex items-start gap-2">
+                      <AlertCircle size={14} className="text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-medium text-amber-400 mb-1">Server-side grading not available</p>
+                        <p className="text-xs text-t-muted">
+                          {(gradeResult as any).message || 'Your code has been synced to the Learn OCaml server. Use the official Learn OCaml web client to grade your submission.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Score */}
+                  {gradeResult.grade !== null && (
+                  <div
+                    className={`p-3 rounded-lg border ${
+                      gradeResult.grade >= 100
+                        ? 'bg-emerald-500/10 border-emerald-500/20'
+                        : gradeResult.grade > 0
+                        ? 'bg-amber-500/10 border-amber-500/20'
+                        : 'bg-rose-500/10 border-rose-500/20'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-t-secondary">Score</span>
+                      <span
+                        className={`text-lg font-bold ${
+                          gradeResult.grade >= 100
+                            ? 'text-emerald-400'
+                            : gradeResult.grade > 0
+                            ? 'text-amber-400'
+                            : 'text-rose-400'
+                        }`}
+                      >
+                        {gradeResult.grade}/{gradeResult.max_grade}
+                      </span>
+                    </div>
+                    {gradeResult.grade >= 100 && (
+                      <div className="flex items-center gap-1 mt-1 text-xs text-emerald-400">
+                        <CheckCircle2 size={12} />
+                        Perfect score!
+                      </div>
+                    )}
+                  </div>
+                  )}
+
+                  {/* Report items */}
+                  {gradeResult.report.length > 0 && (
+                    <div className="space-y-1.5">
+                      {gradeResult.report.map((item, i) => (
+                        <div
+                          key={i}
+                          className={`p-2 rounded text-xs ${
+                            item.status === 'success'
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : item.status === 'failure'
+                              ? 'bg-rose-500/10 text-rose-400'
+                              : item.status === 'warning'
+                              ? 'bg-amber-500/10 text-amber-400'
+                              : 'bg-surface-1 text-t-muted'
+                          }`}
+                        >
+                          <div className="flex items-start gap-1.5">
+                            {item.status === 'success' ? (
+                              <CheckCircle2 size={12} className="shrink-0 mt-0.5" />
+                            ) : item.status === 'failure' ? (
+                              <AlertCircle size={12} className="shrink-0 mt-0.5" />
+                            ) : null}
+                            <div>
+                              <span className="font-medium">{item.section}</span>
+                              {item.message && <p className="mt-0.5 opacity-80">{item.message}</p>}
+                            </div>
+                            {item.points !== undefined && (
+                              <span className="ml-auto font-mono shrink-0">{item.points}pt</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
-
-                {/* Report items */}
-                {gradeResult.report.length > 0 && (
-                  <div className="space-y-1.5">
-                    {gradeResult.report.map((item, i) => (
-                      <div
-                        key={i}
-                        className={`p-2 rounded text-xs ${
-                          item.status === 'success'
-                            ? 'bg-emerald-500/10 text-emerald-400'
-                            : item.status === 'failure'
-                            ? 'bg-rose-500/10 text-rose-400'
-                            : item.status === 'warning'
-                            ? 'bg-amber-500/10 text-amber-400'
-                            : 'bg-surface-1 text-t-muted'
-                        }`}
-                      >
-                        <div className="flex items-start gap-1.5">
-                          {item.status === 'success' ? (
-                            <CheckCircle2 size={12} className="shrink-0 mt-0.5" />
-                          ) : item.status === 'failure' ? (
-                            <AlertCircle size={12} className="shrink-0 mt-0.5" />
-                          ) : null}
-                          <div>
-                            <span className="font-medium">{item.section}</span>
-                            {item.message && <p className="mt-0.5 opacity-80">{item.message}</p>}
-                          </div>
-                          {item.points !== undefined && (
-                            <span className="ml-auto font-mono shrink-0">{item.points}pt</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="px-3 pb-3 text-center py-8">
-                <Trophy size={24} className="mx-auto text-t-ghost mb-2" />
-                <p className="text-xs text-t-faint">
-                  Click "Grade" to submit your solution
-                </p>
-                <p className="text-xs text-t-ghost mt-1">
-                  Ctrl+Shift+G
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right: Editor + Console */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          {/* Editor */}
-          <div className={`${showConsole ? 'flex-1 min-h-0' : 'flex-1'} overflow-hidden`}>
-            <LearnOcamlEditor
-              code={code}
-              onChange={setCode}
-              fontSize={editorFontSize}
-              onRun={handleRun}
-            />
-          </div>
-
-          {/* Console */}
-          {showConsole && (
-            <div className="h-64 shrink-0 border-t border-ide-border overflow-hidden">
-              <Console />
+              ) : (
+                <div className="px-3 pb-3 text-center py-8">
+                  <Trophy size={24} className="mx-auto text-t-ghost mb-2" />
+                  <p className="text-xs text-t-faint">
+                    Click "Grade" to submit your solution
+                  </p>
+                  <p className="text-xs text-t-ghost mt-1">
+                    Ctrl+Shift+G
+                  </p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        }
+        editor={
+          <LearnOcamlEditor
+            code={code}
+            onChange={setCode}
+            fontSize={editorFontSize}
+            onRun={handleRun}
+          />
+        }
+        console={<Console />}
+        showConsole={showConsole}
+        consoleHeight={consoleHeight}
+        onConsoleHeightChange={setConsoleHeight}
+        rightPanel={<MemoryViewer />}
+        showRightPanel={showMemoryPanel}
+        rightPanelWidth={memoryPanelWidth}
+        onRightHandlePointerDown={startResize('memory')}
+      />
     </div>
   );
 }

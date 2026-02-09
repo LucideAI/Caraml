@@ -8,13 +8,16 @@ import {
 import { useState, useRef, useEffect } from 'react';
 
 interface HeaderProps {
-  mode?: 'dashboard' | 'ide' | 'shared';
+  mode?: 'dashboard' | 'ide' | 'shared' | 'custom';
   onRun?: () => void;
   onFormat?: () => void;
   projectName?: string;
+  renderLeft?: React.ReactNode;
+  renderCenter?: React.ReactNode;
+  renderRight?: React.ReactNode;
 }
 
-export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: HeaderProps) {
+export function Header({ mode = 'dashboard', onRun, onFormat, projectName, renderLeft, renderCenter, renderRight }: HeaderProps) {
   const navigate = useNavigate();
   const {
     user, logout, saveProject, isDirty, isRunning, lastSaved,
@@ -40,44 +43,50 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const showSettingsGear = mode !== 'dashboard';
+
   return (
     <header className="h-12 flex items-center justify-between px-3 bg-ide-sidebar border-b border-ide-border shrink-0 z-40">
-      {/* Theme toggle (always visible) */}
-      {mode === 'dashboard' && (
-        <button onClick={toggleTheme} className="btn-icon" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
-          {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
-      )}
-      {/* Left side */}
+      {/* ── Left ────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
-        {mode === 'ide' || mode === 'shared' ? (
-          <button
-            onClick={() => navigate('/')}
-            className="btn-icon"
-            title="Back to Dashboard"
-          >
-            <ArrowLeft size={18} />
-          </button>
-        ) : null}
-
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-          <span className="text-xl">🐫</span>
-          <span className="font-bold text-base text-gradient hidden sm:block">Caraml</span>
-        </div>
-
-        {mode === 'ide' && (
+        {mode === 'custom' ? (
+          renderLeft
+        ) : (
           <>
-            <span className="text-t-ghost mx-1">/</span>
-            <span className="text-sm font-medium text-t-secondary truncate max-w-[200px]">
-              {projectName || currentProject?.name || 'Untitled'}
-            </span>
-            {isDirty && <span className="w-2 h-2 rounded-full bg-amber-500" title="Unsaved changes" />}
+            {mode === 'dashboard' && (
+              <button onClick={toggleTheme} className="btn-icon" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            )}
+
+            {(mode === 'ide' || mode === 'shared') && (
+              <button onClick={() => navigate('/')} className="btn-icon" title="Back to Dashboard">
+                <ArrowLeft size={18} />
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+              <span className="text-xl">🐫</span>
+              <span className="font-bold text-base text-gradient hidden sm:block">Caraml</span>
+            </div>
+
+            {mode === 'ide' && (
+              <>
+                <span className="text-t-ghost mx-1">/</span>
+                <span className="text-sm font-medium text-t-secondary truncate max-w-[200px]">
+                  {projectName || currentProject?.name || 'Untitled'}
+                </span>
+                {isDirty && <span className="w-2 h-2 rounded-full bg-amber-500" title="Unsaved changes" />}
+              </>
+            )}
           </>
         )}
       </div>
 
-      {/* Center - IDE Controls */}
-      {mode === 'ide' && (
+      {/* ── Center ──────────────────────────────────────────────────────── */}
+      {mode === 'custom' ? (
+        <div className="flex items-center gap-1">{renderCenter}</div>
+      ) : mode === 'ide' ? (
         <div className="flex items-center gap-1">
           <button onClick={onRun} disabled={isRunning} className="btn-primary btn-sm gap-1.5" title="Run (Ctrl+Enter)">
             {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
@@ -112,31 +121,32 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
             <BrainCircuit size={16} className={showMemoryPanel ? 'text-brand-400' : ''} />
           </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Right side */}
+      {/* ── Right (always rendered) ─────────────────────────────────────── */}
       <div className="flex items-center gap-2">
+        {renderRight}
+
         {lastSaved && mode === 'ide' && (
           <span className="text-xs text-t-faint hidden md:block">
             Saved {new Date(lastSaved).toLocaleTimeString()}
           </span>
         )}
 
-        {mode === 'ide' && (
+        {showSettingsGear && (
           <div className="relative" ref={settingsRef}>
             <button onClick={() => setShowSettings(!showSettings)} className="btn-icon" title="Settings">
               <Settings size={16} />
             </button>
             {showSettings && (
-              <div className="absolute right-0 top-full mt-1 w-64 border rounded-lg shadow-xl p-3 z-50 animate-fade-in" style={{ backgroundColor: 'var(--ide-panel)', borderColor: 'var(--surface-2)' }}>
+              <div className="absolute right-0 top-full mt-1 w-64 border border-surface-2 rounded-lg shadow-xl p-3 z-50 animate-fade-in bg-ide-panel">
                 <h4 className="text-xs font-semibold text-t-muted uppercase tracking-wider mb-3">Editor Settings</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-sm text-t-secondary">Theme</label>
                     <button
                       onClick={toggleTheme}
-                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-t-secondary transition-colors"
-                      style={{ backgroundColor: 'var(--surface-2)' }}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-t-secondary transition-colors bg-surface-2"
                     >
                       {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
                       {theme === 'dark' ? 'Dark' : 'Light'}
@@ -147,12 +157,12 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setEditorFontSize(Math.max(10, editorFontSize - 1))}
-                        className="btn-xs" style={{ backgroundColor: 'var(--surface-2)' }}
+                        className="btn-xs bg-surface-2"
                       >-</button>
                       <span className="text-sm text-t-secondary w-8 text-center">{editorFontSize}</span>
                       <button
                         onClick={() => setEditorFontSize(Math.min(24, editorFontSize + 1))}
-                        className="btn-xs" style={{ backgroundColor: 'var(--surface-2)' }}
+                        className="btn-xs bg-surface-2"
                       >+</button>
                     </div>
                   </div>
@@ -220,7 +230,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
               <span className="text-sm text-t-secondary hidden sm:block">{user.username}</span>
             </button>
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 border rounded-lg shadow-xl z-50 animate-fade-in overflow-hidden" style={{ backgroundColor: 'var(--ide-panel)', borderColor: 'var(--surface-2)' }}>
+              <div className="absolute right-0 top-full mt-1 w-48 border border-surface-2 rounded-lg shadow-xl z-50 animate-fade-in overflow-hidden bg-ide-panel">
                 <div className="px-3 py-2 border-b border-ide-border">
                   <p className="text-sm font-medium text-t-primary">{user.username}</p>
                   <p className="text-xs text-t-faint">{user.email}</p>

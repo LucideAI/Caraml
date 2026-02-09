@@ -4,6 +4,7 @@ import {
   RuntimeError, MatchFailure, OCamlError,
 } from './types';
 import type { MemoryState, StackFrame as StackFrameType, VariableInfo, HeapObject } from '../types';
+import { displayValue as standaloneDisplayValue } from './display';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // OCaml Evaluator
@@ -781,37 +782,7 @@ export class Evaluator {
 
   // ── Value Display ───────────────────────────────────────────────────────
   displayValue(val: Value, depth: number = 0): string {
-    if (depth > 10) return '...';
-    switch (val.tag) {
-      case 'int': return val.value.toString();
-      case 'float': {
-        const s = val.value.toString();
-        return s.includes('.') ? s : s + '.';
-      }
-      case 'string': return `"${val.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\t/g, '\\t')}"`;
-      case 'char': return `'${val.value}'`;
-      case 'bool': return val.value ? 'true' : 'false';
-      case 'unit': return '()';
-      case 'list':
-        if (val.elements.length === 0) return '[]';
-        return `[${val.elements.map(e => this.displayValue(e, depth + 1)).join('; ')}]`;
-      case 'tuple':
-        return `(${val.elements.map(e => this.displayValue(e, depth + 1)).join(', ')})`;
-      case 'fun': return '<fun>';
-      case 'recfun': return '<fun>';
-      case 'ref': return `{contents = ${this.displayValue(val.value, depth + 1)}}`;
-      case 'constructor':
-        if (val.value) return `${val.name} ${this.displayValue(val.value, depth + 1)}`;
-        return val.name;
-      case 'builtin': return `<fun>`;
-      case 'record': {
-        const fields = Array.from(val.fields.entries()).map(([k, v]) => `${k} = ${this.displayValue(v, depth + 1)}`);
-        return `{${fields.join('; ')}}`;
-      }
-      case 'array':
-        return `[|${val.elements.map(e => this.displayValue(e, depth + 1)).join('; ')}|]`;
-      default: return '<unknown>';
-    }
+    return standaloneDisplayValue(val, depth);
   }
 
   // ── Memory State ────────────────────────────────────────────────────────
@@ -1304,8 +1275,7 @@ export class Evaluator {
 class OCamlException extends OCamlError {
   value: Value;
   constructor(value: Value, line: number) {
-    const evaluator = new Evaluator();
-    super(evaluator.displayValue(value), line, 0, 'Exception');
+    super(standaloneDisplayValue(value), line, 0, 'Exception');
     this.value = value;
   }
 }

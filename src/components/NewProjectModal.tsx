@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
-import { X, Loader2, FolderPlus, Code, Sparkles, BookOpen } from 'lucide-react';
+import { Modal } from './Modal';
+import { Loader2, FolderPlus, Code, Sparkles, BookOpen } from 'lucide-react';
 
 const templates = [
   {
@@ -35,8 +36,6 @@ export function NewProjectModal() {
   const [template, setTemplate] = useState('blank');
   const [isLoading, setIsLoading] = useState(false);
 
-  if (!showNewProjectModal) return null;
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -54,27 +53,22 @@ export function NewProjectModal() {
       setTemplate('blank');
       addNotification('success', 'Project created!');
       navigate(`/ide/${project.id}`);
-    } catch (err: any) {
-      addNotification('error', err.message || 'Failed to create project');
+    } catch (err: unknown) {
+      addNotification('error', err instanceof Error ? err.message : 'Failed to create project');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="modal-overlay" onClick={() => setShowNewProjectModal(false)}>
-      <div className="modal-content w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 pb-4">
-          <div>
-            <h2 className="text-xl font-bold text-t-primary">New Project</h2>
-            <p className="text-sm text-t-muted mt-1">Create a new OCaml project</p>
-          </div>
-          <button onClick={() => setShowNewProjectModal(false)} className="btn-icon">
-            <X size={20} />
-          </button>
-        </div>
-
-        <form onSubmit={handleCreate} className="px-6 pb-6 space-y-4">
+    <Modal
+      isOpen={showNewProjectModal}
+      onClose={() => setShowNewProjectModal(false)}
+      title="New Project"
+      subtitle="Create a new OCaml project"
+      className="max-w-lg"
+    >
+        <form onSubmit={handleCreate} className="px-6 pb-6 pt-4 space-y-4">
           <div>
             <label className="block text-sm font-medium text-t-secondary mb-1.5">Project Name</label>
             <input
@@ -137,7 +131,6 @@ export function NewProjectModal() {
             )}
           </button>
         </form>
-      </div>
-    </div>
+    </Modal>
   );
 }
