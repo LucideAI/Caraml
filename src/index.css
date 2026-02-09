@@ -134,7 +134,9 @@
     flex-direction: column;
   }
 
-  input, textarea, select {
+  input,
+  textarea,
+  select {
     outline: none;
   }
 }
@@ -142,21 +144,18 @@
 /* ── Components ────────────────────────────────────────────────────────── */
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm
-           transition-all duration-150 ease-in-out
-           focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-ide-bg
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-ide-bg disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
   .btn-primary {
-    @apply btn bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-500
-           shadow-lg shadow-brand-500/20;
+    @apply btn bg-brand-500 text-white hover:bg-brand-600 focus:ring-brand-500 shadow-lg shadow-brand-500/20;
   }
 
   .btn-secondary {
     @apply btn text-t-secondary focus:ring-slate-500;
     background-color: var(--surface-2);
   }
+
   .btn-secondary:hover {
     background-color: var(--surface-3);
   }
@@ -164,6 +163,7 @@
   .btn-ghost {
     @apply btn bg-transparent text-t-muted focus:ring-slate-500;
   }
+
   .btn-ghost:hover {
     color: var(--text-secondary);
     background-color: var(--surface-1);
@@ -184,16 +184,14 @@
   .btn-icon {
     @apply p-2 rounded-lg text-t-muted transition-colors duration-150;
   }
+
   .btn-icon:hover {
     color: var(--text-secondary);
     background-color: var(--surface-1);
   }
 
   .input {
-    @apply w-full px-3 py-2.5 border rounded-lg
-           text-t-secondary placeholder-t-faint
-           focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50
-           transition-colors duration-150;
+    @apply w-full px-3 py-2.5 border rounded-lg text-t-secondary placeholder-t-faint focus:border-brand-500 focus:ring-1 focus:ring-brand-500/50 transition-colors duration-150;
     background-color: var(--surface-1);
     border-color: var(--surface-2);
   }
@@ -203,15 +201,13 @@
   }
 
   .panel-header {
-    @apply flex items-center justify-between px-3 py-2 border-b border-ide-border
-           text-xs font-semibold text-t-muted uppercase tracking-wider;
+    @apply flex items-center justify-between px-3 py-2 border-b border-ide-border text-xs font-semibold text-t-muted uppercase tracking-wider;
   }
 
   .tab {
-    @apply flex items-center gap-2 px-3 py-1.5 text-sm text-t-muted
-           border-b-2 border-transparent cursor-pointer
-           transition-all duration-150;
+    @apply flex items-center gap-2 px-3 py-1.5 text-sm text-t-muted border-b-2 border-transparent cursor-pointer transition-all duration-150;
   }
+
   .tab:hover {
     color: var(--text-secondary);
     background-color: var(--surface-1);
@@ -246,20 +242,17 @@
   }
 
   .modal-overlay {
-    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center
-           animate-fade-in;
+    @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center animate-fade-in;
   }
 
   .modal-content {
-    @apply border rounded-xl shadow-2xl
-           animate-slide-up max-h-[90vh] overflow-auto;
+    @apply border rounded-xl shadow-2xl animate-slide-up max-h-[90vh] overflow-auto;
     background-color: var(--ide-panel);
     border-color: var(--surface-2);
   }
 
   .tooltip {
-    @apply absolute z-50 px-2 py-1 text-xs text-t-secondary
-           rounded-md shadow-lg whitespace-nowrap pointer-events-none;
+    @apply absolute z-50 px-2 py-1 text-xs text-t-secondary rounded-md shadow-lg whitespace-nowrap pointer-events-none;
     background-color: var(--surface-2);
     border: 1px solid var(--surface-3);
   }
@@ -297,7 +290,7 @@
   color: var(--text-faint) !important;
 }
 
-.monaco-editor .current-line ~ .line-numbers {
+.monaco-editor .current-line~.line-numbers {
   color: var(--text-muted) !important;
 }
 
@@ -348,14 +341,31 @@
   animation: slideInRight 0.3s ease-out;
 }
 
+.notification-exit {
+  animation: slideOutRight 0.3s ease-in forwards;
+}
+
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+
+  to {
+    transform: translateX(100%);
+    opacity: 0;
   }
 }
 
@@ -366,7 +376,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Learn OCaml Exercise Description ─────────────────────────────────── */
@@ -381,9 +393,17 @@
   @apply font-semibold text-t-primary;
 }
 
-.learn-ocaml-description h1 { @apply text-base mt-4 mb-2; }
-.learn-ocaml-description h2 { @apply text-[15px] mt-3.5 mb-1.5; }
-.learn-ocaml-description h3 { @apply text-[13px] mt-3 mb-1; }
+.learn-ocaml-description h1 {
+  @apply text-base mt-4 mb-2;
+}
+
+.learn-ocaml-description h2 {
+  @apply text-[15px] mt-3.5 mb-1.5;
+}
+
+.learn-ocaml-description h3 {
+  @apply text-[13px] mt-3 mb-1;
+}
 
 .learn-ocaml-description p {
   @apply mb-2.5;
@@ -402,8 +422,13 @@
   @apply ml-4 mb-2.5 space-y-1;
 }
 
-.learn-ocaml-description ul { list-style-type: disc; }
-.learn-ocaml-description ol { list-style-type: decimal; }
+.learn-ocaml-description ul {
+  list-style-type: disc;
+}
+
+.learn-ocaml-description ol {
+  list-style-type: decimal;
+}
 
 .learn-ocaml-description ul ul,
 .learn-ocaml-description ol ol,

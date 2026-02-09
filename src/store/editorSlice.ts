@@ -12,6 +12,7 @@ export interface EditorSlice {
   updateFileContent: (filename: string, content: string) => void;
   createFile: (filename: string) => void;
   deleteFile: (filename: string) => void;
+  restoreFile: (filename: string, content: string, language: string) => void;
   renameFile: (oldName: string, newName: string) => void;
 }
 
@@ -23,7 +24,7 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
     set({ activeFile: filename });
     const { currentProject } = get();
     if (currentProject) {
-      api.updateProject(currentProject.id, { last_opened_file: filename }).catch(() => {});
+      api.updateProject(currentProject.id, { last_opened_file: filename }).catch(() => { });
     }
   },
 
@@ -96,6 +97,22 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
         currentProject: { ...state.currentProject, files: newFiles },
         openTabs: newTabs,
         activeFile: newActive,
+        isDirty: true,
+      };
+    });
+  },
+
+  restoreFile: (filename, content, language) => {
+    set((state) => {
+      if (!state.currentProject) return state;
+      const newFiles = {
+        ...state.currentProject.files,
+        [filename]: { content, language },
+      };
+      return {
+        currentProject: { ...state.currentProject, files: newFiles },
+        openTabs: [...state.openTabs, { filename, isModified: false }],
+        activeFile: filename,
         isDirty: true,
       };
     });
