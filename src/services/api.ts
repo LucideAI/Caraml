@@ -6,15 +6,15 @@ class ApiClient {
   setToken(token: string | null) {
     this.token = token;
     if (token) {
-      localStorage.setItem('camelcode_token', token);
+      localStorage.setItem('caraml_token', token);
     } else {
-      localStorage.removeItem('camelcode_token');
+      localStorage.removeItem('caraml_token');
     }
   }
 
   getToken(): string | null {
     if (!this.token) {
-      this.token = localStorage.getItem('camelcode_token');
+      this.token = localStorage.getItem('caraml_token');
     }
     return this.token;
   }
@@ -60,6 +60,13 @@ class ApiClient {
 
   async getMe() {
     return this.request<{ user: any }>('/auth/me');
+  }
+
+  async updatePreferences(data: { panelWidths?: { fileTree?: number; memory?: number } }) {
+    return this.request<{ user: any }>('/auth/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
   // ── Projects ────────────────────────────────────────────────────────────
@@ -134,7 +141,7 @@ class ApiClient {
     });
   }
 
-  async runToplevel(code: string) {
+  async runToplevel(code: string, signal?: AbortSignal) {
     return this.request<{
       backend: boolean;
       output?: string;
@@ -146,6 +153,7 @@ class ApiClient {
     }>('/toplevel', {
       method: 'POST',
       body: JSON.stringify({ code }),
+      signal,
     });
   }
 

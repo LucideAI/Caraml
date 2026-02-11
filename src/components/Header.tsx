@@ -55,7 +55,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
 
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
           <span className="text-xl">🐫</span>
-          <span className="font-bold text-base text-gradient hidden sm:block">CamelCode</span>
+          <span className="font-bold text-base text-gradient hidden sm:block">Caraml</span>
         </div>
 
         {mode === 'ide' && (

@@ -5,8 +5,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import { spawn, execSync, execFileSync } from 'child_process';
+import { dirname, join, delimiter } from 'path';
+import { spawn, execFileSync } from 'child_process';
 import { writeFileSync, mkdirSync, readFileSync, rmSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 
@@ -14,11 +14,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = 3001;
-const JWT_SECRET = process.env.JWT_SECRET || 'camelcode-secret-key-change-in-production-2024';
+const DEFAULT_PORT = 3001;
+const portFromEnv = Number.parseInt(process.env.CARAML_API_PORT || process.env.PORT || '', 10);
+const PORT = Number.isFinite(portFromEnv) && portFromEnv > 0 ? portFromEnv : DEFAULT_PORT;
+const JWT_SECRET = process.env.JWT_SECRET || 'caraml-secret-key-change-in-production-2024';
 
 // ── Database Setup ──────────────────────────────────────────────────────────
-const db = new Database(join(__dirname, 'camelcode.db'));
+const db = new Database(join(__dirname, 'caraml.db'));
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -29,6 +31,7 @@ db.exec(`
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     avatar_color TEXT DEFAULT '#06b6d4',
+    ui_prefs TEXT NOT NULL DEFAULT '{}',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -49,6 +52,75 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_projects_user_id ON projects(user_id);
   CREATE INDEX IF NOT EXISTS idx_projects_share_id ON projects(share_id);
 `);
+
+// Backward-compatible migration for existing databases.
+const userColumns = db.prepare('PRAGMA table_info(users)').all();
+if (!userColumns.some((column) => column.name === 'ui_prefs')) {
+  db.exec(`ALTER TABLE users ADD COLUMN ui_prefs TEXT NOT NULL DEFAULT '{}'`);
+}
+
+const PANEL_WIDTH_LIMITS = {
+  fileTree: { min: 180, max: 420 },
+  memory: { min: 300, max: 760 },
+};
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseUiPrefs(rawPrefs) {
+  if (!rawPrefs) return {};
+  try {
+    const parsed = JSON.parse(rawPrefs);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function sanitizePanelWidths(panelWidths) {
+  const next = {};
+  if (!panelWidths || typeof panelWidths !== 'object') return next;
+
+  if (Number.isFinite(panelWidths.fileTree)) {
+    next.fileTree = Math.round(
+      clamp(panelWidths.fileTree, PANEL_WIDTH_LIMITS.fileTree.min, PANEL_WIDTH_LIMITS.fileTree.max)
+    );
+  }
+  if (Number.isFinite(panelWidths.memory)) {
+    next.memory = Math.round(
+      clamp(panelWidths.memory, PANEL_WIDTH_LIMITS.memory.min, PANEL_WIDTH_LIMITS.memory.max)
+    );
+  }
+
+  return next;
+}
+
+function mergeUiPrefs(existingPrefs, incomingPrefs) {
+  const current = existingPrefs && typeof existingPrefs === 'object' ? existingPrefs : {};
+  const incoming = incomingPrefs && typeof incomingPrefs === 'object' ? incomingPrefs : {};
+  const merged = { ...current };
+
+  if (incoming.panelWidths !== undefined) {
+    merged.panelWidths = {
+      ...(current.panelWidths && typeof current.panelWidths === 'object' ? current.panelWidths : {}),
+      ...sanitizePanelWidths(incoming.panelWidths),
+    };
+  }
+
+  return merged;
+}
+
+function serializeUser(userRow) {
+  return {
+    id: userRow.id,
+    username: userRow.username,
+    email: userRow.email,
+    avatar_color: userRow.avatar_color,
+    created_at: userRow.created_at,
+    ui_prefs: parseUiPrefs(userRow.ui_prefs),
+  };
+}
 
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({ origin: true, credentials: true }));
@@ -119,7 +191,7 @@ app.post('/api/auth/register', (req, res) => {
     const projectId = randomUUID();
     const defaultFiles = JSON.stringify({
       'main.ml': {
-        content: '(* Welcome to CamelCode! *)\n(* Your professional OCaml IDE *)\n\nlet () =\n  print_endline "Hello, OCaml!"\n\nlet square x = x * x\n\nlet rec factorial n =\n  if n <= 1 then 1\n  else n * factorial (n - 1)\n\nlet () =\n  Printf.printf "square 5 = %d\\n" (square 5);\n  Printf.printf "factorial 10 = %d\\n" (factorial 10)\n',
+        content: '(* Welcome to Caraml! *)\n(* Your professional OCaml IDE *)\n\nlet () =\n    print_endline "Hello, OCaml!"\n\nlet square x = x * x\n\nlet rec factorial n =\n    if n <= 1 then 1\n    else n * factorial (n - 1)\n\nlet () =\n    Printf.printf "square 5 = %d\\n" (square 5);\n    Printf.printf "factorial 10 = %d\\n" (factorial 10)\n',
         language: 'ocaml'
       }
     });
@@ -127,8 +199,11 @@ app.post('/api/auth/register', (req, res) => {
     db.prepare('INSERT INTO projects (id, user_id, name, description, files) VALUES (?, ?, ?, ?, ?)')
       .run(projectId, id, 'My First Project', 'Getting started with OCaml', defaultFiles);
 
+    const createdUser = db.prepare(
+      'SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?'
+    ).get(id);
     const token = jwt.sign({ id, username, email, avatar_color }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id, username, email, avatar_color } });
+    res.json({ token, user: serializeUser(createdUser) });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -157,7 +232,7 @@ app.post('/api/auth/login', (req, res) => {
       JWT_SECRET,
       { expiresIn: '7d' }
     );
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, avatar_color: user.avatar_color } });
+    res.json({ token, user: serializeUser(user) });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -165,9 +240,33 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 app.get('/api/auth/me', authenticate, (req, res) => {
-  const user = db.prepare('SELECT id, username, email, avatar_color, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  res.json({ user });
+  res.json({ user: serializeUser(user) });
+});
+
+app.put('/api/auth/preferences', authenticate, (req, res) => {
+  try {
+    const user = db.prepare(
+      'SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?'
+    ).get(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const currentPrefs = parseUiPrefs(user.ui_prefs);
+    const mergedPrefs = mergeUiPrefs(currentPrefs, req.body);
+
+    db.prepare('UPDATE users SET ui_prefs = ? WHERE id = ?')
+      .run(JSON.stringify(mergedPrefs), req.user.id);
+
+    const updatedUser = db.prepare(
+      'SELECT id, username, email, avatar_color, created_at, ui_prefs FROM users WHERE id = ?'
+    ).get(req.user.id);
+
+    res.json({ user: serializeUser(updatedUser) });
+  } catch (err) {
+    console.error('Update preferences error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 // ── Project Routes ──────────────────────────────────────────────────────────
@@ -189,47 +288,47 @@ app.post('/api/projects', authenticate, (req, res) => {
     if (!name) return res.status(400).json({ error: 'Project name is required' });
 
     const id = randomUUID();
-    let defaultContent = '(* New OCaml Project *)\n\nlet () =\n  print_endline "Hello, World!"\n';
+    let defaultContent = '(* New OCaml Project *)\n\nlet () =\n    print_endline "Hello, World!"\n';
 
     if (template === 'algorithms') {
       defaultContent = `(* Algorithms & Data Structures *)
 
 (* Binary search *)
 let binary_search arr target =
-  let rec aux lo hi =
-    if lo > hi then -1
-    else
-      let mid = (lo + hi) / 2 in
-      if arr.(mid) = target then mid
-      else if arr.(mid) < target then aux (mid + 1) hi
-      else aux lo (mid - 1)
-  in
-  aux 0 (Array.length arr - 1)
+    let rec aux lo hi =
+        if lo > hi then -1
+        else
+            let mid = (lo + hi) / 2 in
+            if arr.(mid) = target then mid
+            else if arr.(mid) < target then aux (mid + 1) hi
+            else aux lo (mid - 1)
+    in
+    aux 0 (Array.length arr - 1)
 
 (* Quick sort *)
 let rec quicksort = function
-  | [] -> []
-  | pivot :: rest ->
-    let left = List.filter (fun x -> x < pivot) rest in
-    let right = List.filter (fun x -> x >= pivot) rest in
-    quicksort left @ [pivot] @ quicksort right
+    | [] -> []
+    | pivot :: rest ->
+        let left = List.filter (fun x -> x < pivot) rest in
+        let right = List.filter (fun x -> x >= pivot) rest in
+        quicksort left @ [pivot] @ quicksort right
 
 let () =
-  let sorted = quicksort [3; 6; 8; 10; 1; 2; 1] in
-  List.iter (fun x -> Printf.printf "%d " x) sorted;
-  print_newline ()
+    let sorted = quicksort [3; 6; 8; 10; 1; 2; 1] in
+    List.iter (fun x -> Printf.printf "%d " x) sorted;
+    print_newline ()
 `;
     } else if (template === 'functional') {
       defaultContent = `(* Functional Programming Patterns *)
 
 (* Option monad *)
 let ( >>= ) opt f = match opt with
-  | None -> None
-  | Some x -> f x
+    | None -> None
+    | Some x -> f x
 
 let ( >>| ) opt f = match opt with
-  | None -> None
-  | Some x -> Some (f x)
+    | None -> None
+    | Some x -> Some (f x)
 
 (* Pipe operator *)
 let ( |> ) x f = f x
@@ -242,12 +341,12 @@ let add x y = x + y
 let add5 = add 5
 
 let () =
-  let result = Some 42 >>| (fun x -> x * 2) >>= (fun x ->
-    if x > 50 then Some x else None
-  ) in
-  match result with
-  | Some v -> Printf.printf "Result: %d\\n" v
-  | None -> print_endline "No result"
+    let result = Some 42 >>| (fun x -> x * 2) >>= (fun x ->
+        if x > 50 then Some x else None
+    ) in
+    match result with
+    | Some v -> Printf.printf "Result: %d\\n" v
+    | None -> print_endline "No result"
 `;
     }
 
@@ -402,41 +501,115 @@ app.post('/api/shared/:shareId/fork', authenticate, (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // ── Detect available OCaml tools ────────────────────────────────────────────
-function findTool(name) {
-  try {
-    // Load opam env vars
-    const opamEnv = {};
-    try {
-      const envStr = execSync('opam env 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
-      for (const line of envStr.split('\n')) {
-        const m = line.match(/^(\w+)='([^']*)'/);
-        if (m) opamEnv[m[1]] = m[2];
-      }
-    } catch {}
-    const env = { ...process.env, ...opamEnv };
-    const result = execSync(`which ${name} 2>/dev/null`, { encoding: 'utf8', timeout: 3000, env }).trim();
-    return result || null;
-  } catch { return null; }
-}
-
-function getOpamEnv() {
-  try {
-    const envStr = execSync('opam env 2>/dev/null', { encoding: 'utf8', timeout: 5000 });
-    const opamEnv = {};
-    for (const line of envStr.split('\n')) {
-      const m = line.match(/^(\w+)='([^']*)'/);
-      if (m) opamEnv[m[1]] = m[2];
-    }
-    return { ...process.env, ...opamEnv };
-  } catch {
-    return process.env;
+function getPathKey(env) {
+  for (const key of Object.keys(env)) {
+    if (key.toLowerCase() === 'path') return key;
   }
+  return 'PATH';
 }
 
-const OPAM_ENV = getOpamEnv();
-const OCAML_PATH = findTool('ocaml');
-const OCAMLMERLIN_PATH = findTool('ocamlmerlin');
-const OCAMLFORMAT_PATH = findTool('ocamlformat');
+function normalizeMaybeQuotedPath(value) {
+  const trimmed = value.trim();
+  const quoted = trimmed.match(/^"(.*)"$/);
+  return quoted ? quoted[1] : trimmed;
+}
+
+function pathsEqual(a, b) {
+  if (process.platform === 'win32') return a.toLowerCase() === b.toLowerCase();
+  return a === b;
+}
+
+function buildToolEnv() {
+  const env = { ...process.env };
+  const pathKey = getPathKey(env);
+  const pathValue = env[pathKey] || '';
+  const pathEntries = pathValue.split(delimiter).map((entry) => entry.trim()).filter(Boolean);
+
+  try {
+    const opamBin = execFileSync('opam', ['var', 'bin'], {
+      encoding: 'utf8',
+      timeout: 5000,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+
+    if (opamBin) {
+      const normalizedOpamBin = normalizeMaybeQuotedPath(opamBin);
+      const alreadyInPath = pathEntries.some((entry) => pathsEqual(normalizeMaybeQuotedPath(entry), normalizedOpamBin));
+      if (!alreadyInPath) {
+        env[pathKey] = [normalizedOpamBin, ...pathEntries].join(delimiter);
+      }
+    }
+  } catch {
+    // opam is optional
+  }
+
+  return env;
+}
+
+function resolveOnPath(toolName, env) {
+  const pathKey = getPathKey(env);
+  const pathValue = env[pathKey];
+  if (!pathValue) return null;
+
+  const entries = pathValue.split(delimiter).map((entry) => normalizeMaybeQuotedPath(entry)).filter(Boolean);
+  const isWindows = process.platform === 'win32';
+
+  let candidateNames = [toolName];
+  if (isWindows && !/\.[^\\/]+$/.test(toolName)) {
+    const pathext = (env.PATHEXT || '.EXE;.CMD;.BAT;.COM')
+      .split(';')
+      .map((ext) => ext.trim())
+      .filter(Boolean);
+    candidateNames = [toolName, ...pathext.map((ext) => `${toolName}${ext}`)];
+  }
+
+  for (const dir of entries) {
+    for (const candidateName of candidateNames) {
+      const candidatePath = join(dir, candidateName);
+      if (existsSync(candidatePath)) {
+        return candidatePath;
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveTool(toolName, overrideEnvVar, env) {
+  const rawOverride = process.env[overrideEnvVar];
+  if (typeof rawOverride === 'string' && rawOverride.trim()) {
+    const overrideValue = normalizeMaybeQuotedPath(rawOverride);
+    if (existsSync(overrideValue)) {
+      return overrideValue;
+    }
+
+    const resolvedOverride = resolveOnPath(overrideValue, env);
+    if (resolvedOverride) {
+      return resolvedOverride;
+    }
+
+    console.warn(`  [tooling] ${overrideEnvVar} points to an unavailable executable: ${overrideValue}`);
+  }
+
+  return resolveOnPath(toolName, env);
+}
+
+const TOOL_ENV = buildToolEnv();
+const OCAML_PATH = resolveTool('ocaml', 'CARAML_OCAML_PATH', TOOL_ENV);
+const OCAMLMERLIN_PATH = resolveTool('ocamlmerlin', 'CARAML_OCAMLMERLIN_PATH', TOOL_ENV);
+const OCAMLFORMAT_PATH = resolveTool('ocamlformat', 'CARAML_OCAMLFORMAT_PATH', TOOL_ENV);
+const OCAML_VERSION = OCAML_PATH ? (() => {
+  try {
+    return execFileSync(OCAML_PATH, ['-version'], {
+      encoding: 'utf8',
+      timeout: 3000,
+      env: TOOL_ENV,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {
+    return null;
+  }
+})() : null;
 
 console.log('  OCaml toolchain:');
 console.log(`    ocaml:       ${OCAML_PATH || '(not found — fallback to browser interpreter)'}`);
@@ -448,7 +621,7 @@ console.log('');
 app.get('/api/capabilities', (req, res) => {
   res.json({
     ocaml: !!OCAML_PATH,
-    ocamlVersion: OCAML_PATH ? (() => { try { return execSync(`${OCAML_PATH} -version 2>&1`, { encoding: 'utf8', timeout: 3000, env: OPAM_ENV }).trim(); } catch { return null; } })() : null,
+    ocamlVersion: OCAML_VERSION,
     merlin: !!OCAMLMERLIN_PATH,
     ocamlformat: !!OCAMLFORMAT_PATH,
   });
@@ -469,7 +642,7 @@ app.post('/api/execute', (req, res) => {
   const startTime = Date.now();
 
   // Create a temp file for the code
-  const tmpDir = join(tmpdir(), `camelcode-${randomUUID()}`);
+  const tmpDir = join(tmpdir(), `caraml-${randomUUID()}`);
   mkdirSync(tmpDir, { recursive: true });
   const tmpFile = join(tmpDir, 'code.ml');
 
@@ -480,7 +653,7 @@ app.post('/api/execute', (req, res) => {
   // Run via ocaml toplevel
   const child = spawn(OCAML_PATH, [tmpFile], {
     cwd: tmpDir,
-    env: OPAM_ENV,
+    env: TOOL_ENV,
     timeout: timeout,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -568,7 +741,7 @@ app.post('/api/toplevel', (req, res) => {
   // Run code through ocaml toplevel interactively
   // We pipe code to stdin and read the toplevel's output
   const child = spawn(OCAML_PATH, ['-noprompt', '-color', 'never'], {
-    env: OPAM_ENV,
+    env: TOOL_ENV,
     timeout: timeout,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -686,7 +859,7 @@ app.post('/api/format', (req, res) => {
   }
 
   try {
-    const tmpDir = join(tmpdir(), `camelcode-fmt-${randomUUID()}`);
+    const tmpDir = join(tmpdir(), `caraml-fmt-${randomUUID()}`);
     mkdirSync(tmpDir, { recursive: true });
     const tmpFile = join(tmpDir, 'code.ml');
     const confFile = join(tmpDir, '.ocamlformat');
@@ -699,7 +872,7 @@ app.post('/api/format', (req, res) => {
       encoding: 'utf8',
       timeout: 5000,
       cwd: tmpDir,
-      env: OPAM_ENV,
+      env: TOOL_ENV,
     });
 
     rmSync(tmpDir, { recursive: true, force: true });
@@ -711,7 +884,7 @@ app.post('/api/format', (req, res) => {
 
 // ── Merlin helper: run a merlin command ─────────────────────────────────────
 function runMerlin(command, code) {
-  const tmpDir = join(tmpdir(), `camelcode-merlin-${randomUUID()}`);
+  const tmpDir = join(tmpdir(), `caraml-merlin-${randomUUID()}`);
   mkdirSync(tmpDir, { recursive: true });
   const tmpFile = join(tmpDir, 'code.ml');
   writeFileSync(tmpFile, code);
@@ -723,7 +896,7 @@ function runMerlin(command, code) {
       timeout: 5000,
       cwd: tmpDir,
       input: code,
-      env: OPAM_ENV,
+      env: TOOL_ENV,
     });
     rmSync(tmpDir, { recursive: true, force: true });
     return JSON.parse(result);
@@ -966,34 +1139,46 @@ app.post('/api/learn-ocaml/connect', async (req, res) => {
       return res.status(400).json({ error: 'Server URL and token are required' });
     }
 
-    // Verify token works by fetching the exercise index (always works if token is valid)
-    let data;
-    try {
-      data = await learnOcamlFetch(serverUrl, 'exercise-index.json', token);
-    } catch (err) {
-      return res.status(502).json({ error: `Cannot reach Learn OCaml server: ${err.message}` });
-    }
-
-    if (!data) {
-      return res.status(401).json({ error: 'Invalid token — could not fetch exercise index' });
-    }
-
-    // Try to get nickname from save.json (may not exist yet → null)
-    let nickname = null;
-    try {
-      const save = await learnOcamlFetch(serverUrl, 'save.json', token);
-      if (save && save.nickname) nickname = save.nickname;
-    } catch {
-      // save.json may not exist yet for this token — that's ok
-    }
-
-    // Try version (may timeout on some servers)
+    // Step 1: Check server is reachable by fetching version (no token needed)
     let version = 'unknown';
     try {
       const vData = await learnOcamlFetch(serverUrl, 'version', null);
       if (vData && vData.version) version = vData.version;
-    } catch {
-      // Version endpoint may not be accessible
+    } catch (err) {
+      return res.status(502).json({ error: `Cannot reach Learn OCaml server: ${err.message}` });
+    }
+
+    // Step 2: Validate token by fetching save.json — this is user-specific
+    let nickname = null;
+    let save = null;
+    try {
+      save = await learnOcamlFetch(serverUrl, 'save.json', token);
+      if (save && save.nickname) nickname = save.nickname;
+    } catch (err) {
+      // If save.json fails with an HTTP error, the token is invalid
+      return res.status(401).json({ error: 'Invalid token — authentication failed. Please check your token.' });
+    }
+
+    // Step 2b: If save.json returned 404 (null), the token could be a new valid
+    // token with no save data yet, or a completely non-existent token.
+    // The Learn OCaml server returns 404 for both cases, so we distinguish by
+    // attempting a sync round-trip: only registered tokens can persist data.
+    if (!save) {
+      try {
+        const minimalSave = { nickname: '', exercises: {} };
+        await learnOcamlFetch(serverUrl, 'sync', token, {
+          method: 'POST',
+          body: JSON.stringify(minimalSave),
+        });
+        // Re-fetch to confirm the data was actually persisted
+        const verifiedSave = await learnOcamlFetch(serverUrl, 'save.json', token);
+        if (!verifiedSave) {
+          return res.status(401).json({ error: 'Invalid token — this token is not registered on the server.' });
+        }
+        if (verifiedSave.nickname) nickname = verifiedSave.nickname;
+      } catch (err) {
+        return res.status(401).json({ error: 'Invalid token — authentication failed. Please check your token.' });
+      }
     }
 
     res.json({ version, nickname });
@@ -1206,6 +1391,6 @@ app.get('*', (req, res) => {
 
 // ── Start Server ────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`\n  🐫 CamelCode server running at http://localhost:${PORT}`);
-  console.log(`  📁 Database: ${join(__dirname, 'camelcode.db')}\n`);
+  console.log(`\n  🐫 Caraml server running at http://localhost:${PORT}`);
+  console.log(`  📁 Database: ${join(__dirname, 'caraml.db')}\n`);
 });
