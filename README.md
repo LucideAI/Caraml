@@ -5,15 +5,15 @@
 ## 📑 Table of Contents
 
 * [Features](#features)
-* [Technical Stack](https://www.google.com/search?q=%23-technical-stack)
-* [Prerequisites](https://www.google.com/search?q=%23-prerequisites)
-* [Installation](https://www.google.com/search?q=%23-installation)
-* [Running the Project](https://www.google.com/search?q=%23-running-the-project)
-* [Environment Variables](https://www.google.com/search?q=%23-environment-variables)
-* [Project Structure](https://www.google.com/search?q=%23-project-structure)
-* [Core API](https://www.google.com/search?q=%23-core-api)
-* [Keyboard Shortcuts](https://www.google.com/search?q=%23-keyboard-shortcuts)
-* [Important Notes](https://www.google.com/search?q=%23-important-notes)
+* [Technical Stack](#technical-stack)
+* [Prerequisites](#prerequisites)
+* [Installation](#installation)
+* [Running the Project](#running-the-project)
+* [Environment Variables](#environment-variables)
+* [Project Structure](#project-structure)
+* [Core API](#core-api)
+* [Keyboard Shortcuts](#keyboard-shortcuts)
+* [Important Notes](#important-notes)
 
 ---
 
