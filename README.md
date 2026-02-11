@@ -17,6 +17,7 @@
 
 ---
 
+<a id="features"></a>
 ## ✨ Features
 
 * 🔐 **User Authentication:** Secure registration and login via JWT.
@@ -38,6 +39,7 @@
 
 ---
 
+<a id="technical-stack"></a>
 ## 🏗️ Technical Stack
 
 ### ⚛️ Frontend
