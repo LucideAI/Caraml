@@ -8,8 +8,8 @@ interface EditorProps {
   onRun?: () => void;
 }
 
-// OCaml language definition for Monaco
-const ocamlLanguageDef: any = {
+// OCaml language definition for Monaco (exported for reuse in Learn OCaml editor)
+export const ocamlLanguageDef: any = {
   defaultToken: '',
   tokenPostfix: '.ocaml',
 
@@ -110,20 +110,20 @@ const ocamlLanguageDef: any = {
   },
 };
 
-// OCaml auto-completion items
-const ocamlCompletions = [
+// OCaml auto-completion items (exported for reuse in Learn OCaml editor)
+export const ocamlCompletions = [
   // Keywords
   { label: 'let', kind: 'Keyword', insertText: 'let ${1:name} = ${2:value}', insertTextRules: 4, detail: 'Variable binding' },
-  { label: 'let rec', kind: 'Keyword', insertText: 'let rec ${1:name} ${2:params} =\n  ${3:body}', insertTextRules: 4, detail: 'Recursive function' },
-  { label: 'if', kind: 'Keyword', insertText: 'if ${1:condition} then\n  ${2:then_expr}\nelse\n  ${3:else_expr}', insertTextRules: 4, detail: 'Conditional' },
+  { label: 'let rec', kind: 'Keyword', insertText: 'let rec ${1:name} ${2:params} =\n    ${3:body}', insertTextRules: 4, detail: 'Recursive function' },
+  { label: 'if', kind: 'Keyword', insertText: 'if ${1:condition} then\n    ${2:then_expr}\nelse\n    ${3:else_expr}', insertTextRules: 4, detail: 'Conditional' },
   { label: 'match', kind: 'Keyword', insertText: 'match ${1:expr} with\n| ${2:pattern} -> ${3:body}', insertTextRules: 4, detail: 'Pattern matching' },
   { label: 'fun', kind: 'Keyword', insertText: 'fun ${1:x} -> ${2:body}', insertTextRules: 4, detail: 'Anonymous function' },
   { label: 'function', kind: 'Keyword', insertText: 'function\n| ${1:pattern} -> ${2:body}', insertTextRules: 4, detail: 'Pattern matching function' },
-  { label: 'type', kind: 'Keyword', insertText: 'type ${1:name} =\n  | ${2:Constructor}', insertTextRules: 4, detail: 'Type declaration' },
-  { label: 'begin', kind: 'Keyword', insertText: 'begin\n  ${1:body}\nend', insertTextRules: 4, detail: 'Block expression' },
-  { label: 'try', kind: 'Keyword', insertText: 'try\n  ${1:expr}\nwith\n| ${2:pattern} -> ${3:handler}', insertTextRules: 4, detail: 'Exception handling' },
-  { label: 'for', kind: 'Keyword', insertText: 'for ${1:i} = ${2:0} to ${3:n} do\n  ${4:body}\ndone', insertTextRules: 4, detail: 'For loop' },
-  { label: 'while', kind: 'Keyword', insertText: 'while ${1:condition} do\n  ${2:body}\ndone', insertTextRules: 4, detail: 'While loop' },
+  { label: 'type', kind: 'Keyword', insertText: 'type ${1:name} =\n    | ${2:Constructor}', insertTextRules: 4, detail: 'Type declaration' },
+  { label: 'begin', kind: 'Keyword', insertText: 'begin\n    ${1:body}\nend', insertTextRules: 4, detail: 'Block expression' },
+  { label: 'try', kind: 'Keyword', insertText: 'try\n    ${1:expr}\nwith\n| ${2:pattern} -> ${3:handler}', insertTextRules: 4, detail: 'Exception handling' },
+  { label: 'for', kind: 'Keyword', insertText: 'for ${1:i} = ${2:0} to ${3:n} do\n    ${4:body}\ndone', insertTextRules: 4, detail: 'For loop' },
+  { label: 'while', kind: 'Keyword', insertText: 'while ${1:condition} do\n    ${2:body}\ndone', insertTextRules: 4, detail: 'While loop' },
   { label: 'exception', kind: 'Keyword', insertText: 'exception ${1:Name} of ${2:type}', insertTextRules: 4, detail: 'Exception declaration' },
 
   // Common functions
@@ -163,12 +163,180 @@ const ocamlCompletions = [
   { label: 'Array.length', kind: 'Function', insertText: 'Array.length ${1:arr}', insertTextRules: 4, detail: "'a array -> int" },
 
   // Snippets
-  { label: 'module', kind: 'Snippet', insertText: 'module ${1:Name} = struct\n  ${2:body}\nend', insertTextRules: 4, detail: 'Module declaration' },
-  { label: 'sig', kind: 'Snippet', insertText: 'sig\n  ${1:body}\nend', insertTextRules: 4, detail: 'Module signature' },
+  { label: 'module', kind: 'Snippet', insertText: 'module ${1:Name} = struct\n    ${2:body}\nend', insertTextRules: 4, detail: 'Module declaration' },
+  { label: 'sig', kind: 'Snippet', insertText: 'sig\n    ${1:body}\nend', insertTextRules: 4, detail: 'Module signature' },
 ];
+
+/**
+ * Register OCaml language, theme, and completions with Monaco.
+ * Exported so it can be reused by the Learn OCaml exercise editor.
+ */
+export function registerOcamlLanguage(monaco: any) {
+  // Only register once
+  const existingLangs = monaco.languages.getLanguages();
+  if (existingLangs.some((l: any) => l.id === 'ocaml')) return;
+
+  monaco.languages.register({ id: 'ocaml' });
+  monaco.languages.setMonarchTokensProvider('ocaml', ocamlLanguageDef);
+
+  monaco.languages.setLanguageConfiguration('ocaml', {
+    comments: { blockComment: ['(*', '*)'] },
+    brackets: [
+      ['{', '}'],
+      ['[', ']'],
+      ['(', ')'],
+      ['begin', 'end'],
+      ['struct', 'end'],
+      ['sig', 'end'],
+    ],
+    autoClosingPairs: [
+      { open: '{', close: '}' },
+      { open: '[', close: ']' },
+      { open: '(', close: ')' },
+      { open: '"', close: '"', notIn: ['string'] },
+      { open: "'", close: "'", notIn: ['string', 'comment'] },
+      { open: '(*', close: '*)' },
+    ],
+    surroundingPairs: [
+      { open: '{', close: '}' },
+      { open: '[', close: ']' },
+      { open: '(', close: ')' },
+      { open: '"', close: '"' },
+    ],
+    indentationRules: {
+      increaseIndentPattern: /^\s*(let|in|if|then|else|begin|struct|sig|match|try|fun|function|for|while|do|type|module|with|object|method)\b.*$/,
+      decreaseIndentPattern: /^\s*(end|done|in|\|)\b/,
+    },
+    folding: {
+      markers: {
+        start: /^\s*\(\*/,
+        end: /\*\)\s*$/,
+      },
+    },
+  });
+
+  // Register completion provider
+  monaco.languages.registerCompletionItemProvider('ocaml', {
+    provideCompletionItems: async (model: any, position: any) => {
+      const word = model.getWordUntilPosition(position);
+      const range = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: word.startColumn,
+        endColumn: word.endColumn,
+      };
+
+      const lineContent = model.getLineContent(position.lineNumber);
+      const textUntilPosition = lineContent.substring(0, position.column - 1);
+      const moduleMatch = textUntilPosition.match(/(\w+)\.\s*$/);
+
+      let suggestions = ocamlCompletions;
+      if (moduleMatch) {
+        const moduleName = moduleMatch[1];
+        suggestions = ocamlCompletions.filter((c: any) =>
+          c.label.startsWith(moduleName + '.')
+        );
+      }
+
+      const kindMap: Record<string, number> = {
+        'Keyword': 17,
+        'Function': 1,
+        'Snippet': 27,
+        'Variable': 5,
+      };
+
+      const localSuggestions = suggestions.map((item: any) => ({
+        label: item.label,
+        kind: kindMap[item.kind] || 1,
+        insertText: item.insertText,
+        insertTextRules: item.insertTextRules,
+        detail: item.detail,
+        range,
+      }));
+
+      // Also query Merlin for completions (async, best-effort)
+      const caps = useStore.getState().capabilities;
+      if (caps.merlin) {
+        try {
+          const code = model.getValue();
+          const prefix = word.word;
+          const result = await api.merlinComplete(code, { line: position.lineNumber, column: position.column - 1 }, prefix);
+          if (result.backend && result.completions.length > 0) {
+            const merlinKindMap: Record<string, number> = {
+              'Value': 5, 'Type': 7, 'Constructor': 12,
+              'Label': 4, 'Module': 8, 'Keyword': 17,
+            };
+            const merlinSuggestions = result.completions.map((c: any) => ({
+              label: c.label,
+              kind: merlinKindMap[c.kind] || 1,
+              insertText: c.label,
+              detail: c.detail || '',
+              documentation: c.documentation || undefined,
+              range,
+              sortText: '0' + c.label,
+            }));
+            return { suggestions: [...merlinSuggestions, ...localSuggestions] };
+          }
+        } catch {
+          // Merlin completions failed — fallback to local
+        }
+      }
+
+      return { suggestions: localSuggestions };
+    },
+    triggerCharacters: ['.'],
+  });
+
+  // Define OCaml theme
+  monaco.editor.defineTheme('caraml-dark', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'keyword', foreground: 'c678dd', fontStyle: 'bold' },
+      { token: 'type', foreground: '56b6c2' },
+      { token: 'type.identifier', foreground: 'e5c07b' },
+      { token: 'identifier', foreground: 'abb2bf' },
+      { token: 'number', foreground: 'd19a66' },
+      { token: 'number.float', foreground: 'd19a66' },
+      { token: 'number.hex', foreground: 'd19a66' },
+      { token: 'string', foreground: '98c379' },
+      { token: 'string.char', foreground: '98c379' },
+      { token: 'string.escape', foreground: '56b6c2' },
+      { token: 'comment', foreground: '5c6370', fontStyle: 'italic' },
+      { token: 'operator', foreground: '56b6c2' },
+      { token: 'delimiter', foreground: 'abb2bf' },
+      { token: '', foreground: 'abb2bf' },
+    ],
+    colors: {
+      'editor.background': '#0a0e1a',
+      'editor.foreground': '#abb2bf',
+      'editor.lineHighlightBackground': '#1e293b40',
+      'editor.selectionBackground': '#264f7840',
+      'editor.inactiveSelectionBackground': '#264f7820',
+      'editorCursor.foreground': '#06b6d4',
+      'editorLineNumber.foreground': '#475569',
+      'editorLineNumber.activeForeground': '#94a3b8',
+      'editorIndentGuide.background': '#1e293b',
+      'editorIndentGuide.activeBackground': '#334155',
+      'editor.selectionHighlightBackground': '#264f7830',
+      'editorBracketMatch.background': '#264f7830',
+      'editorBracketMatch.border': '#06b6d480',
+      'editorGutter.background': '#0a0e1a',
+      'editorWidget.background': '#111827',
+      'editorWidget.border': '#1e293b',
+      'input.background': '#1e293b',
+      'input.border': '#334155',
+      'dropdown.background': '#111827',
+      'list.hoverBackground': '#1e293b',
+      'list.activeSelectionBackground': '#1e3a5f',
+      'minimap.background': '#0a0e1a',
+    },
+  });
+}
 
 export function Editor({ onRun }: EditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const onRunRef = useRef(onRun);
   const {
     currentProject, activeFile, updateFileContent, editorFontSize,
     executionResult,
@@ -176,166 +344,12 @@ export function Editor({ onRun }: EditorProps) {
 
   const content = currentProject?.files[activeFile]?.content || '';
 
+  useEffect(() => {
+    onRunRef.current = onRun;
+  }, [onRun]);
+
   const handleEditorBeforeMount: BeforeMount = (monaco) => {
-    // Register OCaml language
-    monaco.languages.register({ id: 'ocaml' });
-    monaco.languages.setMonarchTokensProvider('ocaml', ocamlLanguageDef);
-
-    // Configure language
-    monaco.languages.setLanguageConfiguration('ocaml', {
-      comments: { blockComment: ['(*', '*)'] },
-      brackets: [
-        ['{', '}'],
-        ['[', ']'],
-        ['(', ')'],
-        ['begin', 'end'],
-        ['struct', 'end'],
-        ['sig', 'end'],
-      ],
-      autoClosingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-        { open: '"', close: '"', notIn: ['string'] },
-        { open: "'", close: "'", notIn: ['string', 'comment'] },
-        { open: '(*', close: '*)' },
-      ],
-      surroundingPairs: [
-        { open: '{', close: '}' },
-        { open: '[', close: ']' },
-        { open: '(', close: ')' },
-        { open: '"', close: '"' },
-      ],
-      indentationRules: {
-        increaseIndentPattern: /^\s*(let|in|if|then|else|begin|struct|sig|match|try|fun|function|for|while|do|type|module|with|object|method)\b.*$/,
-        decreaseIndentPattern: /^\s*(end|done|in|\|)\b/,
-      },
-      folding: {
-        markers: {
-          start: /^\s*\(\*/,
-          end: /\*\)\s*$/,
-        },
-      },
-    });
-
-    // Register completion provider
-    monaco.languages.registerCompletionItemProvider('ocaml', {
-      provideCompletionItems: async (model, position) => {
-        const word = model.getWordUntilPosition(position);
-        const range = {
-          startLineNumber: position.lineNumber,
-          endLineNumber: position.lineNumber,
-          startColumn: word.startColumn,
-          endColumn: word.endColumn,
-        };
-
-        // Check for module prefix (e.g., "List.")
-        const lineContent = model.getLineContent(position.lineNumber);
-        const textUntilPosition = lineContent.substring(0, position.column - 1);
-        const moduleMatch = textUntilPosition.match(/(\w+)\.\s*$/);
-
-        let suggestions = ocamlCompletions;
-        if (moduleMatch) {
-          const moduleName = moduleMatch[1];
-          suggestions = ocamlCompletions.filter(c =>
-            c.label.startsWith(moduleName + '.')
-          );
-        }
-
-        const kindMap: Record<string, number> = {
-          'Keyword': 17,
-          'Function': 1,
-          'Snippet': 27,
-          'Variable': 5,
-        };
-
-        const localSuggestions = suggestions.map(item => ({
-          label: item.label,
-          kind: kindMap[item.kind] || 1,
-          insertText: item.insertText,
-          insertTextRules: item.insertTextRules,
-          detail: item.detail,
-          range,
-        }));
-
-        // Also query Merlin for completions (async, best-effort)
-        const caps = useStore.getState().capabilities;
-        if (caps.merlin) {
-          try {
-            const code = model.getValue();
-            const prefix = word.word;
-            const result = await api.merlinComplete(code, { line: position.lineNumber, column: position.column - 1 }, prefix);
-            if (result.backend && result.completions.length > 0) {
-              const merlinKindMap: Record<string, number> = {
-                'Value': 5, 'Type': 7, 'Constructor': 12,
-                'Label': 4, 'Module': 8, 'Keyword': 17,
-              };
-              const merlinSuggestions = result.completions.map(c => ({
-                label: c.label,
-                kind: merlinKindMap[c.kind] || 1,
-                insertText: c.label,
-                detail: c.detail || '',
-                documentation: c.documentation || undefined,
-                range,
-                sortText: '0' + c.label, // prioritize merlin results
-              }));
-              return { suggestions: [...merlinSuggestions, ...localSuggestions] };
-            }
-          } catch {
-            // Merlin completions failed — fallback to local
-          }
-        }
-
-        return { suggestions: localSuggestions };
-      },
-      triggerCharacters: ['.'],
-    });
-
-    // Define OCaml theme
-    monaco.editor.defineTheme('camelcode-dark', {
-      base: 'vs-dark',
-      inherit: true,
-      rules: [
-        { token: 'keyword', foreground: 'c678dd', fontStyle: 'bold' },
-        { token: 'type', foreground: '56b6c2' },
-        { token: 'type.identifier', foreground: 'e5c07b' },
-        { token: 'identifier', foreground: 'abb2bf' },
-        { token: 'number', foreground: 'd19a66' },
-        { token: 'number.float', foreground: 'd19a66' },
-        { token: 'number.hex', foreground: 'd19a66' },
-        { token: 'string', foreground: '98c379' },
-        { token: 'string.char', foreground: '98c379' },
-        { token: 'string.escape', foreground: '56b6c2' },
-        { token: 'comment', foreground: '5c6370', fontStyle: 'italic' },
-        { token: 'operator', foreground: '56b6c2' },
-        { token: 'delimiter', foreground: 'abb2bf' },
-        { token: '', foreground: 'abb2bf' },
-      ],
-      colors: {
-        'editor.background': '#0a0e1a',
-        'editor.foreground': '#abb2bf',
-        'editor.lineHighlightBackground': '#1e293b40',
-        'editor.selectionBackground': '#264f7840',
-        'editor.inactiveSelectionBackground': '#264f7820',
-        'editorCursor.foreground': '#06b6d4',
-        'editorLineNumber.foreground': '#475569',
-        'editorLineNumber.activeForeground': '#94a3b8',
-        'editorIndentGuide.background': '#1e293b',
-        'editorIndentGuide.activeBackground': '#334155',
-        'editor.selectionHighlightBackground': '#264f7830',
-        'editorBracketMatch.background': '#264f7830',
-        'editorBracketMatch.border': '#06b6d480',
-        'editorGutter.background': '#0a0e1a',
-        'editorWidget.background': '#111827',
-        'editorWidget.border': '#1e293b',
-        'input.background': '#1e293b',
-        'input.border': '#334155',
-        'dropdown.background': '#111827',
-        'list.hoverBackground': '#1e293b',
-        'list.activeSelectionBackground': '#1e3a5f',
-        'minimap.background': '#0a0e1a',
-      },
-    });
+    registerOcamlLanguage(monaco);
   };
 
   const handleEditorMount: OnMount = (editor, monaco) => {
@@ -346,7 +360,7 @@ export function Editor({ onRun }: EditorProps) {
       id: 'run-code',
       label: 'Run Code',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-      run: () => onRun?.(),
+      run: () => onRunRef.current?.(),
     });
 
     editor.addAction({
@@ -453,7 +467,7 @@ export function Editor({ onRun }: EditorProps) {
   return (
     <MonacoEditor
       language="ocaml"
-      theme="camelcode-dark"
+      theme="caraml-dark"
       value={content}
       onChange={handleChange}
       beforeMount={handleEditorBeforeMount}
@@ -475,8 +489,9 @@ export function Editor({ onRun }: EditorProps) {
         folding: true,
         foldingStrategy: 'indentation',
         automaticLayout: true,
-        tabSize: 2,
+        tabSize: 4,
         insertSpaces: true,
+        detectIndentation: false,
         wordWrap: 'off',
         padding: { top: 12, bottom: 12 },
         suggestOnTriggerCharacters: true,
