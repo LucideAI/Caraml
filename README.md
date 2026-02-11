@@ -4,7 +4,7 @@
 
 ## 📑 Table of Contents
 
-* [Features](https://www.google.com/search?q=%23-features)
+* [Features](#features)
 * [Technical Stack](https://www.google.com/search?q=%23-technical-stack)
 * [Prerequisites](https://www.google.com/search?q=%23-prerequisites)
 * [Installation](https://www.google.com/search?q=%23-installation)
