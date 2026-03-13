@@ -3,6 +3,10 @@ import { runOcamlToplevel } from './ocaml.js';
 
 const router = Router();
 
+// Cache for proxied grader worker scripts (keyed by serverUrl + filename)
+const workerScriptCache = new Map();
+const WORKER_CACHE_TTL = 3600_000; // 1 hour
+
 async function learnOcamlFetch(serverUrl, path, token, options = {}) {
   const baseUrl = serverUrl.replace(/\/+$/, '');
   const separator = path.includes('?') ? '&' : '?';
@@ -403,6 +407,84 @@ router.post('/learn-ocaml/grade', async (req, res) => {
   } catch (err) {
     console.error('Learn OCaml grade error:', err);
     res.status(500).json({ error: `Failed to grade exercise: ${err.message}` });
+  }
+});
+
+// ── Proxy grader worker JS files from Learn OCaml server ─────────────────────
+router.post('/learn-ocaml/grader-worker', async (req, res) => {
+  try {
+    const { serverUrl, filename } = req.body;
+    if (!serverUrl) {
+      return res.status(400).json({ error: 'Server URL is required' });
+    }
+
+    const file = filename || 'learnocaml-grader-worker.js';
+    const allowedFiles = [
+      'learnocaml-grader-worker.js',
+      'learnocaml-toplevel-worker.js',
+      'learnocaml-exercise.js',
+    ];
+    if (!allowedFiles.includes(file)) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    const cacheKey = `${serverUrl}::${file}`;
+    const cached = workerScriptCache.get(cacheKey);
+    if (cached && Date.now() - cached.time < WORKER_CACHE_TTL) {
+      res.set('Content-Type', 'application/javascript');
+      return res.send(cached.data);
+    }
+
+    const baseUrl = serverUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}/js/${file}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return res.status(response.status).json({
+          error: `Failed to fetch ${file}: HTTP ${response.status}`,
+        });
+      }
+
+      const scriptContent = await response.text();
+      workerScriptCache.set(cacheKey, { data: scriptContent, time: Date.now() });
+
+      res.set('Content-Type', 'application/javascript');
+      res.send(scriptContent);
+    } catch (fetchErr) {
+      clearTimeout(timeout);
+      throw fetchErr;
+    }
+  } catch (err) {
+    console.error('Learn OCaml grader worker proxy error:', err);
+    res.status(500).json({ error: `Failed to proxy grader worker: ${err.message}` });
+  }
+});
+
+// ── Return raw exercise data for client-side grading ─────────────────────────
+router.post('/learn-ocaml/exercise-raw/*', async (req, res) => {
+  try {
+    const { serverUrl, token } = req.body;
+    const exerciseId = req.params[0];
+    if (!serverUrl || !token || !exerciseId) {
+      return res.status(400).json({ error: 'Server URL, token, and exercise ID are required' });
+    }
+
+    // Fetch the raw exercise JSON which includes compiled test/solution bytecode
+    const data = await learnOcamlFetch(serverUrl, `exercises/${exerciseId}.json`, token);
+    if (!data) {
+      return res.status(404).json({ error: `Exercise "${exerciseId}" not found` });
+    }
+
+    // Return the raw JSON array: [meta, exercise_data, grade_or_null]
+    res.json(data);
+  } catch (err) {
+    console.error('Learn OCaml exercise raw error:', err);
+    res.status(500).json({ error: `Failed to fetch raw exercise data: ${err.message}` });
   }
 });
 

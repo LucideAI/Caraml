@@ -5,6 +5,7 @@ import type {
 } from '../types';
 import type { AppState } from './types';
 import { learnOcamlApi } from '../services/learnOcamlApi';
+import { gradeWithWorker, cleanupGrader } from '../services/learnOcamlGrader';
 
 export interface LearnOcamlSlice {
   learnOcaml: {
@@ -13,6 +14,7 @@ export interface LearnOcamlSlice {
     isLoadingExercises: boolean;
     isLoadingExercise: boolean;
     isGrading: boolean;
+    gradingProgress: string | null;
     isSyncing: boolean;
     exercises: (LearnOcamlExerciseGroup | LearnOcamlExerciseIndexEntry)[];
     grades: Record<string, number>;
@@ -37,6 +39,7 @@ export const createLearnOcamlSlice: StateCreator<AppState, [], [], LearnOcamlSli
     isLoadingExercises: false,
     isLoadingExercise: false,
     isGrading: false,
+    gradingProgress: null,
     isSyncing: false,
     exercises: [],
     grades: {},
@@ -75,6 +78,7 @@ export const createLearnOcamlSlice: StateCreator<AppState, [], [], LearnOcamlSli
 
   learnOcamlDisconnect: () => {
     learnOcamlApi.disconnect();
+    cleanupGrader();
     set((s) => ({
       learnOcaml: {
         ...s.learnOcaml,
@@ -83,6 +87,7 @@ export const createLearnOcamlSlice: StateCreator<AppState, [], [], LearnOcamlSli
         grades: {},
         currentExercise: null,
         lastGradeResult: null,
+        gradingProgress: null,
       },
     }));
     get().addNotification('info', 'Disconnected from Learn OCaml');
@@ -135,9 +140,34 @@ export const createLearnOcamlSlice: StateCreator<AppState, [], [], LearnOcamlSli
   },
 
   learnOcamlGrade: async (exerciseId, code) => {
-    set((s) => ({ learnOcaml: { ...s.learnOcaml, isGrading: true } }));
+    const conn = get().learnOcaml.connection;
+    if (!conn) {
+      get().addNotification('error', 'Not connected to Learn OCaml');
+      throw new Error('Not connected to Learn OCaml');
+    }
+
+    set((s) => ({ learnOcaml: { ...s.learnOcaml, isGrading: true, gradingProgress: 'Starting...' } }));
+
     try {
-      const result = await learnOcamlApi.gradeExercise(exerciseId, code);
+      // First, sync the code so it's saved regardless of grading outcome
+      try {
+        await learnOcamlApi.updateExerciseAnswer(exerciseId, code);
+      } catch {
+        // Sync failure is non-fatal for grading
+      }
+
+      // Use client-side Web Worker grading
+      const result = await gradeWithWorker(
+        conn.serverUrl,
+        conn.token,
+        exerciseId,
+        code,
+        (progress) => {
+          set((s) => ({ learnOcaml: { ...s.learnOcaml, gradingProgress: progress } }));
+        },
+        90_000, // 90 second timeout
+      );
+
       const updatedGrades = { ...get().learnOcaml.grades };
       if (result.grade !== null && result.grade !== undefined) {
         updatedGrades[exerciseId] = result.grade;
@@ -146,21 +176,30 @@ export const createLearnOcamlSlice: StateCreator<AppState, [], [], LearnOcamlSli
         learnOcaml: {
           ...s.learnOcaml,
           isGrading: false,
+          gradingProgress: null,
           lastGradeResult: result,
           grades: updatedGrades,
         },
       }));
       if (result.grade !== null && result.grade !== undefined) {
         get().addNotification(
-          result.grade >= 100 ? 'success' : result.grade > 0 ? 'warning' : 'error',
+          result.grade >= (result.max_grade || 100) ? 'success' : result.grade > 0 ? 'warning' : 'error',
           `Grade: ${result.grade}/${result.max_grade}`
         );
-      } else {
-        get().addNotification('info', result.message || 'Code synced. Server-side grading not available.');
+      } else if (result.report.length > 0) {
+        get().addNotification('info', 'Grading complete — see report for details.');
       }
+
+      // Also sync the grade back to Learn OCaml server
+      try {
+        await learnOcamlApi.gradeExercise(exerciseId, code);
+      } catch {
+        // Non-critical — grade was computed locally
+      }
+
       return result;
     } catch (err: unknown) {
-      set((s) => ({ learnOcaml: { ...s.learnOcaml, isGrading: false } }));
+      set((s) => ({ learnOcaml: { ...s.learnOcaml, isGrading: false, gradingProgress: null } }));
       get().addNotification('error', `Grading failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
       throw err;
     }
