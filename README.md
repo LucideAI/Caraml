@@ -34,7 +34,7 @@
 
 * 🧠 **Memory Visualization:** Real-time inspection of the environment, stack, heap, and data types.
 * 🔗 **Social Sharing:** Public project sharing via unique links with forking capabilities.
-* 🎓 **Learn OCaml Integration:** Connect to instances, browse exercises, synchronize answers, and view grading reports.
+* 🎓 **Learn OCaml Integration:** Connect to instances, browse exercises, synchronize answers, and view grading reports (fully supports client-side grading via sandboxed Web Workers).
 
 ---
 
@@ -291,7 +291,9 @@ Caraml/
 * `POST /api/learn-ocaml/exercise/*`
 * `POST /api/learn-ocaml/save`
 * `POST /api/learn-ocaml/sync-answer`
-* `POST /api/learn-ocaml/grade`
+* `POST /api/learn-ocaml/grade` (fallback)
+* `POST /api/learn-ocaml/grader-worker`
+* `POST /api/learn-ocaml/exercise-raw/*`
 
 ---
 

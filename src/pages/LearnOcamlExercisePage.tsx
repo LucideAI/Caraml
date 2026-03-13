@@ -370,7 +370,7 @@ export function LearnOcamlExercisePage() {
                 <div className="flex items-center justify-center py-8">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 size={24} className="animate-spin text-orange-400" />
-                    <p className="text-xs text-t-faint">Grading...</p>
+                    <p className="text-xs text-t-faint">{learnOcaml.gradingProgress || 'Grading...'}</p>
                   </div>
                 </div>
               ) : gradeResult ? (
