@@ -56,10 +56,10 @@ export function FileTree() {
     const savedLanguage = file.language;
     deleteFile(filename);
 
-    addNotification('info', `"${filename}" supprim\u00e9`, {
+    addNotification('info', `"${filename}" deleted`, {
       duration: 3500,
       action: {
-        label: 'Annuler',
+        label: 'Undo',
         onClick: () => restoreFile(filename, savedContent, savedLanguage),
       },
     });
@@ -217,13 +217,13 @@ export function FileTree() {
       <Modal
         isOpen={deleteTarget !== null}
         onClose={() => setDeleteTarget(null)}
-        title="Supprimer le fichier"
+        title="Delete file"
         icon={<div className="p-2 rounded-lg bg-rose-500/10"><AlertTriangle size={20} className="text-rose-400" /></div>}
         className="max-w-sm"
       >
         <div className="p-6 pt-4 space-y-4">
           <p className="text-sm text-t-secondary">
-            Voulez-vous vraiment supprimer <strong className="text-t-primary">{deleteTarget}</strong> ?
+            Are you sure you want to delete <strong className="text-t-primary">{deleteTarget}</strong>?
           </p>
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
@@ -232,15 +232,15 @@ export function FileTree() {
               onChange={(e) => setDontAskAgain(e.target.checked)}
               className="rounded border-surface-3 bg-surface-1 text-brand-500 focus:ring-brand-500 focus:ring-offset-0 w-3.5 h-3.5"
             />
-            <span className="text-xs text-t-muted">Ne plus demander</span>
+            <span className="text-xs text-t-muted">Don't ask again</span>
           </label>
           <div className="flex justify-end gap-2">
             <button onClick={() => setDeleteTarget(null)} className="btn-secondary btn-sm">
-              Annuler
+              Cancel
             </button>
             <button onClick={confirmDelete} className="btn-danger btn-sm">
               <Trash2 size={14} />
-              Supprimer
+              Delete
             </button>
           </div>
         </div>

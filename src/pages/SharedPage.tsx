@@ -27,7 +27,7 @@ export function SharedPage() {
     showConsole, showMemoryPanel,
     isRunning,
     activeFile, setActiveFile,
-    addNotification, capabilities, loadCapabilities,
+    addNotification, loadCapabilities,
     memoryState, memoryPanelWidth, memoryPanelWidthMode,
     setMemoryPanelWidth, persistPanelWidths,
     consoleHeight, setConsoleHeight,

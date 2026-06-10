@@ -18,10 +18,6 @@ export interface GradeProgressCallback {
   (message: string): void;
 }
 
-interface GraderWorkerMessage {
-  data: [string, ...unknown[]];
-}
-
 /**
  * Fetch the grader worker script from our backend proxy and create a Blob URL.
  * Cached in memory for the session.

@@ -103,7 +103,6 @@ function ExerciseGroup({
   // Count stats for this group
   const allExercises = flattenExercises(group.children);
   const completed = allExercises.filter((e) => (grades[e.id] ?? -1) >= 100).length;
-  const attempted = allExercises.filter((e) => grades[e.id] !== undefined && grades[e.id] !== null).length;
   const total = allExercises.length;
 
   // Filter by search

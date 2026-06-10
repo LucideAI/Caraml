@@ -5,6 +5,39 @@ import { authenticate, optionalAuth } from '../middleware.js';
 
 const router = Router();
 
+const MAX_NAME_LENGTH = 100;
+const MAX_DESCRIPTION_LENGTH = 500;
+const MAX_FILE_COUNT = 50;
+const MAX_TOTAL_FILE_SIZE = 2 * 1024 * 1024; // 2 MB of source per project
+
+function validateProjectName(name) {
+  if (typeof name !== 'string' || !name.trim()) return 'Project name is required';
+  if (name.length > MAX_NAME_LENGTH) return `Project name must be at most ${MAX_NAME_LENGTH} characters`;
+  return null;
+}
+
+function validateFiles(files) {
+  if (!files || typeof files !== 'object' || Array.isArray(files)) {
+    return 'Files must be an object';
+  }
+  const entries = Object.entries(files);
+  if (entries.length === 0) return 'Project must contain at least one file';
+  if (entries.length > MAX_FILE_COUNT) return `Project cannot exceed ${MAX_FILE_COUNT} files`;
+
+  let totalSize = 0;
+  for (const [filename, file] of entries) {
+    if (!filename || filename.length > 255 || filename.includes('/') || filename.includes('\\')) {
+      return `Invalid filename: "${filename}"`;
+    }
+    if (!file || typeof file.content !== 'string') {
+      return `File "${filename}" must have string content`;
+    }
+    totalSize += file.content.length;
+  }
+  if (totalSize > MAX_TOTAL_FILE_SIZE) return 'Project files exceed the 2 MB size limit';
+  return null;
+}
+
 router.get('/projects', authenticate, (req, res) => {
   try {
     const projects = db.prepare(
@@ -20,7 +53,11 @@ router.get('/projects', authenticate, (req, res) => {
 router.post('/projects', authenticate, (req, res) => {
   try {
     const { name, description, template } = req.body;
-    if (!name) return res.status(400).json({ error: 'Project name is required' });
+    const nameError = validateProjectName(name);
+    if (nameError) return res.status(400).json({ error: nameError });
+    if (description !== undefined && (typeof description !== 'string' || description.length > MAX_DESCRIPTION_LENGTH)) {
+      return res.status(400).json({ error: `Description must be a string of at most ${MAX_DESCRIPTION_LENGTH} characters` });
+    }
 
     const id = randomUUID();
     let defaultContent = '(* New OCaml Project *)\n\nlet () =\n    print_endline "Hello, World!"\n';
@@ -120,10 +157,28 @@ router.put('/projects/:id', authenticate, (req, res) => {
     const updates = [];
     const params = [];
 
-    if (name !== undefined) { updates.push('name = ?'); params.push(name); }
-    if (description !== undefined) { updates.push('description = ?'); params.push(description); }
-    if (files !== undefined) { updates.push('files = ?'); params.push(JSON.stringify(files)); }
-    if (last_opened_file !== undefined) { updates.push('last_opened_file = ?'); params.push(last_opened_file); }
+    if (name !== undefined) {
+      const nameError = validateProjectName(name);
+      if (nameError) return res.status(400).json({ error: nameError });
+      updates.push('name = ?'); params.push(name);
+    }
+    if (description !== undefined) {
+      if (typeof description !== 'string' || description.length > MAX_DESCRIPTION_LENGTH) {
+        return res.status(400).json({ error: `Description must be a string of at most ${MAX_DESCRIPTION_LENGTH} characters` });
+      }
+      updates.push('description = ?'); params.push(description);
+    }
+    if (files !== undefined) {
+      const filesError = validateFiles(files);
+      if (filesError) return res.status(400).json({ error: filesError });
+      updates.push('files = ?'); params.push(JSON.stringify(files));
+    }
+    if (last_opened_file !== undefined) {
+      if (typeof last_opened_file !== 'string' || last_opened_file.length > 255) {
+        return res.status(400).json({ error: 'Invalid last_opened_file' });
+      }
+      updates.push('last_opened_file = ?'); params.push(last_opened_file);
+    }
 
     updates.push('updated_at = CURRENT_TIMESTAMP');
     params.push(req.params.id);
@@ -157,7 +212,13 @@ router.post('/projects/:id/share', authenticate, (req, res) => {
 
     let shareId = project.share_id;
     if (!shareId) {
-      shareId = randomUUID().slice(0, 8);
+      // share_id is UNIQUE — retry on the (unlikely) collision of a truncated UUID
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const candidate = randomUUID().replace(/-/g, '').slice(0, 12);
+        const taken = db.prepare('SELECT id FROM projects WHERE share_id = ?').get(candidate);
+        if (!taken) { shareId = candidate; break; }
+      }
+      if (!shareId) return res.status(500).json({ error: 'Could not generate share link, please retry' });
       db.prepare('UPDATE projects SET share_id = ?, is_public = 1 WHERE id = ?').run(shareId, req.params.id);
     } else {
       db.prepare('UPDATE projects SET is_public = 1 WHERE id = ?').run(req.params.id);

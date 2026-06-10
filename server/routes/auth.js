@@ -3,23 +3,31 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { db } from '../db.js';
-import { JWT_SECRET, authenticate } from '../middleware.js';
+import { JWT_SECRET, authenticate, rateLimit } from '../middleware.js';
 import { serializeUser, parseUiPrefs, mergeUiPrefs } from '../helpers.js';
 
 const router = Router();
 
-router.post('/auth/register', (req, res) => {
+const USERNAME_REGEX = /^[a-zA-Z0-9_.-]{3,32}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const authRateLimit = rateLimit({ windowMs: 60_000, max: 10 });
+
+router.post('/auth/register', authRateLimit, (req, res) => {
   try {
     const { username, email, password } = req.body;
 
-    if (!username || !email || !password) {
+    if (typeof username !== 'string' || typeof email !== 'string' || typeof password !== 'string'
+        || !username || !email || !password) {
       return res.status(400).json({ error: 'Username, email and password are required' });
     }
-    if (username.length < 3) {
-      return res.status(400).json({ error: 'Username must be at least 3 characters' });
+    if (!USERNAME_REGEX.test(username)) {
+      return res.status(400).json({ error: 'Username must be 3-32 characters (letters, digits, ".", "-", "_")' });
     }
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!EMAIL_REGEX.test(email) || email.length > 254) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+    if (password.length < 6 || password.length > 128) {
+      return res.status(400).json({ error: 'Password must be between 6 and 128 characters' });
     }
 
     const existing = db.prepare('SELECT id FROM users WHERE username = ? OR email = ?').get(username, email);
@@ -58,11 +66,11 @@ router.post('/auth/register', (req, res) => {
   }
 });
 
-router.post('/auth/login', (req, res) => {
+router.post('/auth/login', authRateLimit, (req, res) => {
   try {
     const { login, password } = req.body;
 
-    if (!login || !password) {
+    if (typeof login !== 'string' || typeof password !== 'string' || !login || !password) {
       return res.status(400).json({ error: 'Login and password are required' });
     }
 

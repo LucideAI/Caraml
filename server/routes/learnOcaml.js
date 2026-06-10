@@ -7,7 +7,20 @@ const router = Router();
 const workerScriptCache = new Map();
 const WORKER_CACHE_TTL = 3600_000; // 1 hour
 
+function assertValidServerUrl(serverUrl) {
+  let parsed;
+  try {
+    parsed = new URL(serverUrl);
+  } catch {
+    throw new Error('Invalid Learn OCaml server URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Learn OCaml server URL must use http or https');
+  }
+}
+
 async function learnOcamlFetch(serverUrl, path, token, options = {}) {
+  assertValidServerUrl(serverUrl);
   const baseUrl = serverUrl.replace(/\/+$/, '');
   const separator = path.includes('?') ? '&' : '?';
   const tokenParam = token ? `${separator}token=${encodeURIComponent(token)}` : '';
@@ -233,6 +246,7 @@ router.post('/learn-ocaml/exercise/*', async (req, res) => {
 
     res.json({
       id: exercise.id || exerciseId,
+      pathId: exerciseId,
       title: meta.title || exerciseId,
       description: parseExerciseDescription(exercise.descr),
       prelude: exercise.prelude || '',
@@ -278,9 +292,7 @@ router.post('/learn-ocaml/sync-answer', async (req, res) => {
     if (!save.exercises[exerciseId]) {
       save.exercises[exerciseId] = {};
     }
-    // Strip old grade/report so we don't re-sync stale grading data
-    delete save.exercises[exerciseId].grade;
-    delete save.exercises[exerciseId].report;
+    // Only update the solution — preserve existing grade/report
     save.exercises[exerciseId].solution = code;
     save.exercises[exerciseId].mtime = Date.now() / 1000;
 
@@ -293,6 +305,42 @@ router.post('/learn-ocaml/sync-answer', async (req, res) => {
   } catch (err) {
     console.error('Learn OCaml sync error:', err);
     res.status(500).json({ error: `Failed to sync answer: ${err.message}` });
+  }
+});
+
+// ── Sync grade+report back to pf2 after client-side grading ──────────────────
+router.post('/learn-ocaml/sync-grade', async (req, res) => {
+  try {
+    const { serverUrl, token, exerciseId, grade, report } = req.body;
+    if (!serverUrl || !token || !exerciseId) {
+      return res.status(400).json({ error: 'Server URL, token, and exerciseId are required' });
+    }
+
+    let save = await learnOcamlFetch(serverUrl, 'save.json', token);
+    if (!save || typeof save !== 'object') {
+      save = { nickname: '', exercises: {} };
+    }
+    if (!save.exercises) save.exercises = {};
+    if (!save.exercises[exerciseId]) save.exercises[exerciseId] = {};
+
+    // Update grade and report
+    if (typeof grade === 'number') {
+      save.exercises[exerciseId].grade = grade;
+    }
+    if (Array.isArray(report)) {
+      save.exercises[exerciseId].report = report;
+    }
+    save.exercises[exerciseId].mtime = Date.now() / 1000;
+
+    await learnOcamlFetch(serverUrl, 'sync', token, {
+      method: 'POST',
+      body: JSON.stringify(save),
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Learn OCaml sync-grade error:', err);
+    res.status(500).json({ error: `Failed to sync grade: ${err.message}` });
   }
 });
 
@@ -310,9 +358,7 @@ router.post('/learn-ocaml/grade', async (req, res) => {
     }
     if (!save.exercises) save.exercises = {};
     if (!save.exercises[exerciseId]) save.exercises[exerciseId] = {};
-    // Strip old grade/report so we don't re-sync stale grading data
-    delete save.exercises[exerciseId].grade;
-    delete save.exercises[exerciseId].report;
+    // Only update the solution — preserve existing grade/report
     save.exercises[exerciseId].solution = code;
     save.exercises[exerciseId].mtime = Date.now() / 1000;
 
@@ -426,6 +472,12 @@ router.post('/learn-ocaml/grader-worker', async (req, res) => {
     ];
     if (!allowedFiles.includes(file)) {
       return res.status(400).json({ error: 'Invalid filename' });
+    }
+
+    try {
+      assertValidServerUrl(serverUrl);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
     }
 
     const cacheKey = `${serverUrl}::${file}`;

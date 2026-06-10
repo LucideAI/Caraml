@@ -1,10 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
 import { useStore } from '../store';
-import { interpret } from '../interpreter';
 import { Terminal, Trash2, Copy, Check, Clock, AlertCircle, CheckCircle2, Server, Cpu } from 'lucide-react';
 
 export function Console() {
-  const { executionResult, consoleFontSize, capabilities } = useStore();
+  const { executionResult, consoleFontSize } = useStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -59,10 +58,12 @@ export function Console() {
         <div className="flex items-center gap-1">
           {executionResult && (
             <>
-              <span className="flex items-center gap-1 text-t-faint text-[10px] mr-1" title={capabilities.ocaml ? 'Executed with real OCaml' : 'Executed with browser interpreter'}>
-                {capabilities.ocaml ? <Server size={10} /> : <Cpu size={10} />}
-                {capabilities.ocaml ? 'OCaml' : 'Browser'}
-              </span>
+              {executionResult.source && (
+                <span className="flex items-center gap-1 text-t-faint text-[10px] mr-1" title={executionResult.source === 'server' ? 'Executed with native OCaml on the server' : 'Executed with the in-browser interpreter'}>
+                  {executionResult.source === 'server' ? <Server size={10} /> : <Cpu size={10} />}
+                  {executionResult.source === 'server' ? 'OCaml' : 'Browser'}
+                </span>
+              )}
               <span className="flex items-center gap-1 text-t-faint text-[10px] mr-2">
                 <Clock size={10} />
                 {executionResult.executionTimeMs.toFixed(1)}ms

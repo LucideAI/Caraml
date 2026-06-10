@@ -16,7 +16,7 @@ const EMPTY_MEMORY: MemoryState = { stack: [], heap: [], environment: [], typeDe
  */
 export function useCodeRunner(getCode: () => string | null) {
   const {
-    setExecutionResult, setIsRunning, capabilities,
+    setExecutionResult, setIsRunning,
   } = useStore();
 
   const runAbortRef = useRef<AbortController | null>(null);
@@ -73,7 +73,7 @@ export function useCodeRunner(getCode: () => string | null) {
         if (runSeqRef.current !== runSeq) return;
         try {
           const result = interpret(code, evalOpts);
-          setExecutionResult(result);
+          setExecutionResult({ ...result, source: 'browser' });
         } catch (err: unknown) {
           if (runSeqRef.current !== runSeq) return;
           setExecutionResult({
@@ -82,6 +82,7 @@ export function useCodeRunner(getCode: () => string | null) {
             errors: [{ line: 0, column: 0, message: err instanceof Error ? err.message : 'Unknown error' }],
             memoryState: EMPTY_MEMORY,
             executionTimeMs: 0,
+            source: 'browser',
           });
         } finally {
           if (fallbackTimerRef.current) {
@@ -120,6 +121,7 @@ export function useCodeRunner(getCode: () => string | null) {
             errors: toplevelResult.errors || [],
             memoryState,
             executionTimeMs: toplevelResult.executionTimeMs || 0,
+            source: 'server',
           });
           finalizeIfCurrent();
           return;

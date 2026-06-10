@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import {
   ArrowLeft, Save, Share2, Play, Loader2, Settings, LogOut, User, FolderOpen,
   PanelLeftClose, PanelLeftOpen, PanelBottomClose, PanelBottomOpen, BrainCircuit,
-  Keyboard, AlignLeft, Server, Cpu, GraduationCap, Sun, Moon,
+  Keyboard, AlignLeft, GraduationCap, Sun, Moon,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -189,7 +189,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName, rende
                     </div>
                     <div className="flex items-center gap-2 text-xs text-t-faint">
                       <Keyboard size={12} />
-                      <span>Del = Supprimer fichier</span>
+                      <span>Del = Delete file</span>
                     </div>
                     {capabilities.ocamlformat && (
                       <div className="flex items-center gap-2 text-xs text-t-faint">

@@ -9,7 +9,7 @@ import {
 export function LearnOcamlModal() {
   const {
     learnOcaml, learnOcamlConnect, learnOcamlDisconnect,
-    setShowLearnOcamlModal, addNotification,
+    setShowLearnOcamlModal,
   } = useStore();
 
   const [serverUrl, setServerUrl] = useState(

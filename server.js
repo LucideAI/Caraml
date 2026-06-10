@@ -18,7 +18,27 @@ const portFromEnv = Number.parseInt(process.env.CARAML_API_PORT || process.env.P
 const PORT = Number.isFinite(portFromEnv) && portFromEnv > 0 ? portFromEnv : DEFAULT_PORT;
 
 // ── Middleware ───────────────────────────────────────────────────────────────
-app.use(cors({ origin: true, credentials: true }));
+// The SPA is served from this same origin (or proxied through Vite in dev),
+// so cross-origin access is only needed for explicitly whitelisted origins.
+const extraOrigins = (process.env.CARAML_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  `http://localhost:${PORT}`,
+  `http://127.0.0.1:${PORT}`,
+  ...extraOrigins,
+]);
+app.use(cors({
+  origin: (origin, callback) => {
+    // Same-origin requests (no Origin header) and whitelisted origins only.
+    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(join(__dirname, 'dist')));
 

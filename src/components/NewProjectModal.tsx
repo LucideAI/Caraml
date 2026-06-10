@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store';
 import { Modal } from './Modal';
-import { Loader2, FolderPlus, Code, Sparkles, BookOpen } from 'lucide-react';
+import { Loader2, FolderPlus, Code, Sparkles } from 'lucide-react';
 
 const templates = [
   {
