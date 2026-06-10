@@ -1,14 +1,15 @@
 import { useState } from 'react';
 import { useStore } from '../store';
+import { Modal } from './Modal';
 import {
-  X, Globe, Key, Loader2, Server, Unplug, AlertCircle, CheckCircle2,
+  Globe, Key, Loader2, Server, Unplug, AlertCircle, CheckCircle2,
   GraduationCap, Info,
 } from 'lucide-react';
 
 export function LearnOcamlModal() {
   const {
     learnOcaml, learnOcamlConnect, learnOcamlDisconnect,
-    setShowLearnOcamlModal, addNotification,
+    setShowLearnOcamlModal,
   } = useStore();
 
   const [serverUrl, setServerUrl] = useState(
@@ -17,8 +18,6 @@ export function LearnOcamlModal() {
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
-
-  if (!learnOcaml.showConnectModal) return null;
 
   const handleConnect = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +42,8 @@ export function LearnOcamlModal() {
     setIsConnecting(true);
     try {
       await learnOcamlConnect(serverUrl.trim(), token.trim().toUpperCase());
-    } catch (err: any) {
-      setError(err.message || 'Failed to connect');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to connect');
     } finally {
       setIsConnecting(false);
     }
@@ -56,31 +55,15 @@ export function LearnOcamlModal() {
   };
 
   return (
-    <div className="modal-overlay" onClick={() => setShowLearnOcamlModal(false)}>
-      <div
-        className="modal-content w-full max-w-lg p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
-              <GraduationCap size={20} className="text-orange-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-100">Learn OCaml</h2>
-              <p className="text-xs text-slate-500">Connect to your university instance</p>
-            </div>
-          </div>
-          <button
-            onClick={() => setShowLearnOcamlModal(false)}
-            className="btn-icon"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Connected state */}
+    <Modal
+      isOpen={learnOcaml.showConnectModal}
+      onClose={() => setShowLearnOcamlModal(false)}
+      title="Learn OCaml"
+      subtitle="Connect to your university instance"
+      icon={<div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center"><GraduationCap size={20} className="text-orange-400" /></div>}
+      className="max-w-lg"
+    >
+      <div className="p-6 pt-4">
         {learnOcaml.connection ? (
           <div className="space-y-4">
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -90,27 +73,27 @@ export function LearnOcamlModal() {
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
-                  <Globe size={14} className="text-slate-500 shrink-0" />
-                  <span className="text-slate-400">Server:</span>
-                  <span className="text-slate-200 truncate">{learnOcaml.connection.serverUrl}</span>
+                  <Globe size={14} className="text-t-faint shrink-0" />
+                  <span className="text-t-muted">Server:</span>
+                  <span className="text-t-secondary truncate">{learnOcaml.connection.serverUrl}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Key size={14} className="text-slate-500 shrink-0" />
-                  <span className="text-slate-400">Token:</span>
-                  <span className="text-slate-200 font-mono">{learnOcaml.connection.token}</span>
+                  <Key size={14} className="text-t-faint shrink-0" />
+                  <span className="text-t-muted">Token:</span>
+                  <span className="text-t-secondary font-mono">{learnOcaml.connection.token}</span>
                 </div>
                 {learnOcaml.connection.nickname && (
                   <div className="flex items-center gap-2">
-                    <Server size={14} className="text-slate-500 shrink-0" />
-                    <span className="text-slate-400">Nickname:</span>
-                    <span className="text-slate-200">{learnOcaml.connection.nickname}</span>
+                    <Server size={14} className="text-t-faint shrink-0" />
+                    <span className="text-t-muted">Nickname:</span>
+                    <span className="text-t-secondary">{learnOcaml.connection.nickname}</span>
                   </div>
                 )}
                 {learnOcaml.connection.serverVersion && (
                   <div className="flex items-center gap-2">
-                    <Info size={14} className="text-slate-500 shrink-0" />
-                    <span className="text-slate-400">Version:</span>
-                    <span className="text-slate-200">{learnOcaml.connection.serverVersion}</span>
+                    <Info size={14} className="text-t-faint shrink-0" />
+                    <span className="text-t-muted">Version:</span>
+                    <span className="text-t-secondary">{learnOcaml.connection.serverVersion}</span>
                   </div>
                 )}
               </div>
@@ -128,7 +111,7 @@ export function LearnOcamlModal() {
           /* Connection form */
           <form onSubmit={handleConnect} className="space-y-4">
             {/* Info box */}
-            <div className="p-3 bg-slate-800/50 border border-slate-700 rounded-lg text-xs text-slate-400 leading-relaxed">
+            <div className="p-3 border border-surface-2 rounded-lg text-xs text-t-muted leading-relaxed bg-surface-1">
               <p>
                 Connect your Learn OCaml account to synchronize exercises, submit answers,
                 and view your grades directly from Caraml. You'll need your server URL
@@ -138,11 +121,11 @@ export function LearnOcamlModal() {
 
             {/* Server URL */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-t-secondary mb-1.5">
                 Server URL
               </label>
               <div className="relative">
-                <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-t-faint" />
                 <input
                   type="url"
                   value={serverUrl}
@@ -155,11 +138,11 @@ export function LearnOcamlModal() {
 
             {/* Token */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">
+              <label className="block text-sm font-medium text-t-secondary mb-1.5">
                 Your Token
               </label>
               <div className="relative">
-                <Key size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Key size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-t-faint" />
                 <input
                   type="text"
                   value={token}
@@ -173,7 +156,7 @@ export function LearnOcamlModal() {
                   maxLength={15}
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-t-faint mt-1">
                 Find your token on your Learn OCaml profile page
               </p>
             </div>
@@ -207,6 +190,6 @@ export function LearnOcamlModal() {
           </form>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

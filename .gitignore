@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 _opam/
+*.tmp-menhir-source/
 
 # Build output
 dist/
@@ -31,5 +32,8 @@ Desktop.ini
 *.log
 npm-debug.log*
 
+# Vite crash artifacts
+vite.config.ts.timestamp-*
 
-*.tmp-menhir-source/
+tmpclaude*
+.claude*

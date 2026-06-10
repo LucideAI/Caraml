@@ -1,8 +1,13 @@
 {
-  "name": "ocaml-ide",
+  "name": "caraml",
   "version": "1.0.0",
+  "description": "Web-based OCaml IDE with code execution, memory visualization, project sharing, and Learn OCaml integration",
+  "license": "MIT",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:no-ocaml": "node scripts/dev.mjs --skip-ocaml",
@@ -10,7 +15,8 @@
     "dev:server": "node server.js",
     "ensure:ocaml": "node scripts/ensure-ocaml.mjs",
     "setup:ocaml": "node scripts/setup-ocaml.mjs",
-    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "start": "node server.js"
   },
@@ -19,6 +25,7 @@
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^11.0.0",
     "cors": "^2.8.5",
+    "dompurify": "^3.4.9",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.294.0",

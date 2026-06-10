@@ -9,11 +9,13 @@ import { LearnOcamlExercisePage } from './pages/LearnOcamlExercisePage';
 import { Notifications } from './components/Notifications';
 
 export default function App() {
-  const { checkAuth, isAuthLoading } = useStore();
+  const { checkAuth, isAuthLoading, learnOcamlRestoreConnection } = useStore();
 
   useEffect(() => {
     checkAuth();
-  }, [checkAuth]);
+    // Restore the Learn OCaml session from localStorage on any entry route
+    learnOcamlRestoreConnection();
+  }, [checkAuth, learnOcamlRestoreConnection]);
 
   if (isAuthLoading) {
     return (

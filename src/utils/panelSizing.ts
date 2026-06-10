@@ -1,16 +1,23 @@
 import type { MemoryState } from '../types';
 
 export type PanelWidthMode = 'auto' | 'manual';
-export type PanelKind = 'fileTree' | 'memory';
+export type PanelKind = 'fileTree' | 'memory' | 'description';
 
 export const DEFAULT_FILE_TREE_WIDTH = 208;
 export const DEFAULT_MEMORY_PANEL_WIDTH = 288;
+export const DEFAULT_DESCRIPTION_WIDTH = 320;
 export const EDITOR_MIN_WIDTH = 420;
 export const RESIZE_HANDLE_WIDTH = 6;
+
+export const DEFAULT_CONSOLE_HEIGHT = 256;
+export const CONSOLE_MIN_HEIGHT = 80;
+export const CONSOLE_MAX_HEIGHT = 600;
+export const CONSOLE_HANDLE_HEIGHT = 6;
 
 export const PANEL_LIMITS: Record<PanelKind, { min: number; max: number }> = {
   fileTree: { min: 180, max: 420 },
   memory: { min: 300, max: 760 },
+  description: { min: 200, max: 520 },
 };
 
 const measurementCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
@@ -24,10 +31,21 @@ function measureTextWidth(text: string): number {
   return measurementContext.measureText(text).width;
 }
 
+const PANEL_DEFAULTS: Record<PanelKind, number> = {
+  fileTree: DEFAULT_FILE_TREE_WIDTH,
+  memory: DEFAULT_MEMORY_PANEL_WIDTH,
+  description: DEFAULT_DESCRIPTION_WIDTH,
+};
+
 export function clampPanelWidth(kind: PanelKind, width: number): number {
   const bounds = PANEL_LIMITS[kind];
-  if (!Number.isFinite(width)) return kind === 'fileTree' ? DEFAULT_FILE_TREE_WIDTH : DEFAULT_MEMORY_PANEL_WIDTH;
+  if (!Number.isFinite(width)) return PANEL_DEFAULTS[kind];
   return Math.round(Math.min(bounds.max, Math.max(bounds.min, width)));
+}
+
+export function clampConsoleHeight(height: number): number {
+  if (!Number.isFinite(height)) return DEFAULT_CONSOLE_HEIGHT;
+  return Math.round(Math.min(CONSOLE_MAX_HEIGHT, Math.max(CONSOLE_MIN_HEIGHT, height)));
 }
 
 function maxLineWidth(lines: string[]): number {

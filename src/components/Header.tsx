@@ -3,18 +3,21 @@ import { useStore } from '../store';
 import {
   ArrowLeft, Save, Share2, Play, Loader2, Settings, LogOut, User, FolderOpen,
   PanelLeftClose, PanelLeftOpen, PanelBottomClose, PanelBottomOpen, BrainCircuit,
-  Keyboard, AlignLeft, Server, Cpu, GraduationCap,
+  Keyboard, AlignLeft, GraduationCap, Sun, Moon,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 interface HeaderProps {
-  mode?: 'dashboard' | 'ide' | 'shared';
+  mode?: 'dashboard' | 'ide' | 'shared' | 'custom';
   onRun?: () => void;
   onFormat?: () => void;
   projectName?: string;
+  renderLeft?: React.ReactNode;
+  renderCenter?: React.ReactNode;
+  renderRight?: React.ReactNode;
 }
 
-export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: HeaderProps) {
+export function Header({ mode = 'dashboard', onRun, onFormat, projectName, renderLeft, renderCenter, renderRight }: HeaderProps) {
   const navigate = useNavigate();
   const {
     user, logout, saveProject, isDirty, isRunning, lastSaved,
@@ -22,7 +25,9 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
     toggleFileTree, toggleConsole, toggleMemoryPanel,
     setShowAuthModal, setShowShareModal, currentProject,
     editorFontSize, setEditorFontSize,
+    maxRecursionDepth, setMaxRecursionDepth,
     capabilities, learnOcaml,
+    theme, toggleTheme,
   } = useStore();
 
   const [showSettings, setShowSettings] = useState(false);
@@ -39,38 +44,50 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const showSettingsGear = mode !== 'dashboard';
+
   return (
     <header className="h-12 flex items-center justify-between px-3 bg-ide-sidebar border-b border-ide-border shrink-0 z-40">
-      {/* Left side */}
+      {/* ── Left ────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
-        {mode === 'ide' || mode === 'shared' ? (
-          <button
-            onClick={() => navigate('/')}
-            className="btn-icon"
-            title="Back to Dashboard"
-          >
-            <ArrowLeft size={18} />
-          </button>
-        ) : null}
-
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
-          <span className="text-xl">🐫</span>
-          <span className="font-bold text-base text-gradient hidden sm:block">Caraml</span>
-        </div>
-
-        {mode === 'ide' && (
+        {mode === 'custom' ? (
+          renderLeft
+        ) : (
           <>
-            <span className="text-slate-600 mx-1">/</span>
-            <span className="text-sm font-medium text-slate-300 truncate max-w-[200px]">
-              {projectName || currentProject?.name || 'Untitled'}
-            </span>
-            {isDirty && <span className="w-2 h-2 rounded-full bg-amber-500" title="Unsaved changes" />}
+            {mode === 'dashboard' && (
+              <button onClick={toggleTheme} className="btn-icon" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}>
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </button>
+            )}
+
+            {(mode === 'ide' || mode === 'shared') && (
+              <button onClick={() => navigate('/')} className="btn-icon" title="Back to Dashboard">
+                <ArrowLeft size={18} />
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+              <span className="text-xl">🐫</span>
+              <span className="font-bold text-base text-gradient hidden sm:block">Caraml</span>
+            </div>
+
+            {mode === 'ide' && (
+              <>
+                <span className="text-t-ghost mx-1">/</span>
+                <span className="text-sm font-medium text-t-secondary truncate max-w-[200px]">
+                  {projectName || currentProject?.name || 'Untitled'}
+                </span>
+                {isDirty && <span className="w-2 h-2 rounded-full bg-amber-500" title="Unsaved changes" />}
+              </>
+            )}
           </>
         )}
       </div>
 
-      {/* Center - IDE Controls */}
-      {mode === 'ide' && (
+      {/* ── Center ──────────────────────────────────────────────────────── */}
+      {mode === 'custom' ? (
+        <div className="flex items-center gap-1">{renderCenter}</div>
+      ) : mode === 'ide' ? (
         <div className="flex items-center gap-1">
           <button onClick={onRun} disabled={isRunning} className="btn-primary btn-sm gap-1.5" title="Run (Ctrl+Enter)">
             {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
@@ -105,66 +122,97 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
             <BrainCircuit size={16} className={showMemoryPanel ? 'text-brand-400' : ''} />
           </button>
         </div>
-      )}
+      ) : null}
 
-      {/* Right side */}
+      {/* ── Right (always rendered) ─────────────────────────────────────── */}
       <div className="flex items-center gap-2">
+        {renderRight}
+
         {lastSaved && mode === 'ide' && (
-          <span className="text-xs text-slate-500 hidden md:block">
+          <span className="text-xs text-t-faint hidden md:block">
             Saved {new Date(lastSaved).toLocaleTimeString()}
           </span>
         )}
 
-        {mode === 'ide' && (
+        {showSettingsGear && (
           <div className="relative" ref={settingsRef}>
             <button onClick={() => setShowSettings(!showSettings)} className="btn-icon" title="Settings">
               <Settings size={16} />
             </button>
             {showSettings && (
-              <div className="absolute right-0 top-full mt-1 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl p-3 z-50 animate-fade-in">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Editor Settings</h4>
+              <div className="absolute right-0 top-full mt-1 w-64 border border-surface-2 rounded-lg shadow-xl p-3 z-50 animate-fade-in bg-ide-panel">
+                <h4 className="text-xs font-semibold text-t-muted uppercase tracking-wider mb-3">Editor Settings</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-sm text-slate-300">Font Size</label>
+                    <label className="text-sm text-t-secondary">Theme</label>
+                    <button
+                      onClick={toggleTheme}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-t-secondary transition-colors bg-surface-2"
+                    >
+                      {theme === 'dark' ? <Moon size={14} /> : <Sun size={14} />}
+                      {theme === 'dark' ? 'Dark' : 'Light'}
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-t-secondary">Font Size</label>
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setEditorFontSize(Math.max(10, editorFontSize - 1))}
-                        className="btn-xs bg-slate-700 hover:bg-slate-600"
+                        className="btn-xs bg-surface-2"
                       >-</button>
-                      <span className="text-sm text-slate-200 w-8 text-center">{editorFontSize}</span>
+                      <span className="text-sm text-t-secondary w-8 text-center">{editorFontSize}</span>
                       <button
                         onClick={() => setEditorFontSize(Math.min(24, editorFontSize + 1))}
-                        className="btn-xs bg-slate-700 hover:bg-slate-600"
+                        className="btn-xs bg-surface-2"
                       >+</button>
                     </div>
                   </div>
-                  <div className="pt-2 border-t border-slate-700 space-y-2">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-t-secondary" title="Maximum recursion depth for the interpreter (100 - 100 000)">Recursion Limit</label>
+                    <input
+                      type="number"
+                      min={100}
+                      max={100000}
+                      step={500}
+                      value={maxRecursionDepth}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10);
+                        if (!isNaN(v)) setMaxRecursionDepth(v);
+                      }}
+                      className="w-20 px-2 py-1 text-sm text-t-secondary rounded-lg text-center bg-surface-2 border-none focus:outline-none focus:ring-1 focus:ring-brand-500"
+                    />
+                  </div>
+                  <div className="pt-2 border-t border-ide-border space-y-2">
+                    <div className="flex items-center gap-2 text-xs text-t-faint">
                       <Keyboard size={12} />
                       <span>Ctrl+Enter = Run | Ctrl+S = Save</span>
                     </div>
+                    <div className="flex items-center gap-2 text-xs text-t-faint">
+                      <Keyboard size={12} />
+                      <span>Del = Delete file</span>
+                    </div>
                     {capabilities.ocamlformat && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <div className="flex items-center gap-2 text-xs text-t-faint">
                         <Keyboard size={12} />
                         <span>Ctrl+Shift+F = Format</span>
                       </div>
                     )}
-                    <div className="pt-2 border-t border-slate-700">
-                      <div className="text-[10px] uppercase tracking-wider text-slate-600 mb-1.5">Backend</div>
+                    <div className="pt-2 border-t border-ide-border">
+                      <div className="text-[10px] uppercase tracking-wider text-t-ghost mb-1.5">Backend</div>
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 text-xs">
-                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocaml ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className={capabilities.ocaml ? 'text-slate-300' : 'text-slate-600'}>
+                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocaml ? 'bg-emerald-400' : 'bg-surface-3'}`} />
+                          <span className={capabilities.ocaml ? 'text-t-secondary' : 'text-t-ghost'}>
                             {capabilities.ocaml ? `OCaml ${capabilities.ocamlVersion?.match(/\d+\.\d+\.\d+/)?.[0] || ''}` : 'OCaml (browser only)'}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs">
-                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.merlin ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className={capabilities.merlin ? 'text-slate-300' : 'text-slate-600'}>Merlin</span>
+                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.merlin ? 'bg-emerald-400' : 'bg-surface-3'}`} />
+                          <span className={capabilities.merlin ? 'text-t-secondary' : 'text-t-ghost'}>Merlin</span>
                         </div>
                         <div className="flex items-center gap-2 text-xs">
-                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocamlformat ? 'bg-emerald-400' : 'bg-slate-600'}`} />
-                          <span className={capabilities.ocamlformat ? 'text-slate-300' : 'text-slate-600'}>ocamlformat</span>
+                          <div className={`w-1.5 h-1.5 rounded-full ${capabilities.ocamlformat ? 'bg-emerald-400' : 'bg-surface-3'}`} />
+                          <span className={capabilities.ocamlformat ? 'text-t-secondary' : 'text-t-ghost'}>ocamlformat</span>
                         </div>
                       </div>
                     </div>
@@ -191,7 +239,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-slate-800 transition-colors"
+              className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-ide-hover transition-colors"
             >
               <div
                 className="w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-xs"
@@ -199,24 +247,24 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName }: Hea
               >
                 {user.username[0].toUpperCase()}
               </div>
-              <span className="text-sm text-slate-300 hidden sm:block">{user.username}</span>
+              <span className="text-sm text-t-secondary hidden sm:block">{user.username}</span>
             </button>
             {showUserMenu && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 animate-fade-in overflow-hidden">
-                <div className="px-3 py-2 border-b border-slate-700">
-                  <p className="text-sm font-medium text-slate-200">{user.username}</p>
-                  <p className="text-xs text-slate-500">{user.email}</p>
+              <div className="absolute right-0 top-full mt-1 w-48 border border-surface-2 rounded-lg shadow-xl z-50 animate-fade-in overflow-hidden bg-ide-panel">
+                <div className="px-3 py-2 border-b border-ide-border">
+                  <p className="text-sm font-medium text-t-primary">{user.username}</p>
+                  <p className="text-xs text-t-faint">{user.email}</p>
                 </div>
                 <button
                   onClick={() => { navigate('/'); setShowUserMenu(false); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-300 hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-t-secondary hover:bg-ide-hover transition-colors"
                 >
                   <FolderOpen size={14} />
                   My Projects
                 </button>
                 <button
                   onClick={() => { logout(); setShowUserMenu(false); navigate('/'); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-rose-400 hover:bg-slate-700 transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-rose-400 hover:bg-ide-hover transition-colors"
                 >
                   <LogOut size={14} />
                   Sign Out

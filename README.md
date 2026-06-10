@@ -32,7 +32,7 @@
     * `ocamlformat` for automated code formatting.
 * 🧠 **Memory Visualization:** Real-time inspection of the environment, stack, heap, and data types.
 * 🔗 **Social Sharing:** Public project sharing via unique links with forking capabilities.
-* 🎓 **Learn OCaml Integration:** Connect to instances, browse exercises, synchronize answers, and view grading reports.
+* 🎓 **Learn OCaml Integration:** Connect to instances, browse exercises, synchronize answers, and view grading reports (fully supports client-side grading via sandboxed Web Workers).
 
 ---
 
@@ -212,7 +212,9 @@ npm run start
 
 The following variables can be configured:
 
-* `JWT_SECRET` (Optional, but **highly recommended** for non-local environments).
+* `JWT_SECRET` (**Required in production**): Secret used to sign session tokens. If unset in production, an ephemeral secret is generated at startup (all sessions are invalidated on restart) and a warning is logged.
+* `CARAML_API_PORT` / `PORT` (Optional): Backend port (default `3001`).
+* `CARAML_ALLOWED_ORIGINS` (Optional): Comma-separated list of additional origins allowed by CORS (localhost origins are allowed by default).
 * `CARAML_OCAML_PATH` (Optional): Explicit path to the `ocaml` binary.
 * `CARAML_OCAMLMERLIN_PATH` (Optional): Explicit path to the `ocamlmerlin` binary.
 * `CARAML_OCAMLFORMAT_PATH` (Optional): Explicit path to the `ocamlformat` binary.
@@ -239,7 +241,7 @@ npm run dev:server
 
 ```
 
-*Note: The backend port is currently hardcoded to `3001` in `server.js`.*
+*Note: The backend listens on `3001` by default; override it with `CARAML_API_PORT` or `PORT`.*
 
 ---
 
@@ -322,7 +324,10 @@ Caraml/
 * `POST /api/learn-ocaml/exercise/*`
 * `POST /api/learn-ocaml/save`
 * `POST /api/learn-ocaml/sync-answer`
-* `POST /api/learn-ocaml/grade`
+* `POST /api/learn-ocaml/sync-grade`
+* `POST /api/learn-ocaml/grade` (fallback)
+* `POST /api/learn-ocaml/grader-worker`
+* `POST /api/learn-ocaml/exercise-raw/*`
 
 ---
 
