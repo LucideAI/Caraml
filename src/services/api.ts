@@ -44,15 +44,29 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw err;
+      throw new Error('Cannot reach the server. Check your connection and try again.');
+    }
 
-    const data = await response.json();
+    let data: any = null;
+    try {
+      data = await response.json();
+    } catch {
+      // Non-JSON response (e.g. proxy error page) — fall through to status check
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      throw new Error(data?.error || `Request failed (HTTP ${response.status})`);
+    }
+    if (data === null) {
+      throw new Error('Server returned an invalid response');
     }
 
     return data;

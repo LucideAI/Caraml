@@ -32,5 +32,8 @@ Desktop.ini
 *.log
 npm-debug.log*
 
+# Vite crash artifacts
+vite.config.ts.timestamp-*
 
 tmpclaude*
+.claude*

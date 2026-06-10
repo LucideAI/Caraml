@@ -5,10 +5,12 @@ import { Header } from '../components/Header';
 import { AuthModal } from '../components/AuthModal';
 import { NewProjectModal } from '../components/NewProjectModal';
 import { LearnOcamlModal } from '../components/LearnOcamlModal';
+import { Modal } from '../components/Modal';
 import {
   Plus, FolderOpen, Trash2, Share2, Clock, Code, Loader2,
   Search, BookOpen, Sparkles, ArrowRight, ExternalLink,
   GraduationCap, Zap, Globe, CheckCircle2, ChevronRight, Trophy,
+  AlertTriangle,
 } from 'lucide-react';
 
 export function DashboardPage() {
@@ -16,21 +18,20 @@ export function DashboardPage() {
   const {
     user, projects, loadProjects, deleteProject, isProjectLoading,
     setShowAuthModal, setShowNewProjectModal, addNotification,
-    learnOcaml, setShowLearnOcamlModal, learnOcamlRestoreConnection,
-    learnOcamlLoadExercises,
+    learnOcaml, setShowLearnOcamlModal,
   } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (user) loadProjects();
-    // Restore Learn OCaml connection from localStorage
-    learnOcamlRestoreConnection();
   }, [user, loadProjects]);
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (!confirm('Delete this project? This action cannot be undone.')) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
     setDeletingId(id);
     try {
       await deleteProject(id);
@@ -323,10 +324,11 @@ let () =
 
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
-                          onClick={(e) => handleDelete(e, project.id)}
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: project.id, name: project.name }); }}
                           disabled={deletingId === project.id}
                           className="p-1.5 rounded-md text-t-faint hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                          title="Delete"
+                          title="Delete project"
+                          aria-label={`Delete project ${project.name}`}
                         >
                           {deletingId === project.id ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -347,6 +349,31 @@ let () =
       <AuthModal />
       <NewProjectModal />
       <LearnOcamlModal />
+
+      {/* Delete confirmation */}
+      <Modal
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete project"
+        icon={<div className="p-2 rounded-lg bg-rose-500/10"><AlertTriangle size={20} className="text-rose-400" /></div>}
+        className="max-w-sm"
+      >
+        <div className="p-6 pt-4 space-y-4">
+          <p className="text-sm text-t-secondary">
+            Are you sure you want to delete <strong className="text-t-primary">{deleteTarget?.name}</strong>?
+            This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setDeleteTarget(null)} className="btn-secondary btn-sm">
+              Cancel
+            </button>
+            <button onClick={confirmDelete} className="btn-danger btn-sm">
+              <Trash2 size={14} />
+              Delete
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

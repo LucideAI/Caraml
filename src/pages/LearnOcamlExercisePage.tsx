@@ -1,19 +1,16 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import MonacoEditor from '@monaco-editor/react';
+import DOMPurify from 'dompurify';
 import { useStore } from '../store';
 import { Console } from '../components/Console';
 import { Header } from '../components/Header';
 import { MemoryViewer } from '../components/MemoryViewer';
 import { IDELayout } from '../components/IDELayout';
-import { api } from '../services/api';
 import { registerOcamlLanguage } from '../components/Editor';
 import { useCodeRunner } from '../hooks/useCodeRunner';
 import { useResizablePanel } from '../hooks/useResizablePanel';
-import {
-  DEFAULT_DESCRIPTION_WIDTH,
-  PANEL_LIMITS,
-} from '../utils/panelSizing';
+import { DEFAULT_DESCRIPTION_WIDTH } from '../utils/panelSizing';
 import {
   ArrowLeft, Loader2, Play, CheckCircle2, AlertCircle,
   GraduationCap, FileText, Code, Upload, Trophy,
@@ -30,8 +27,8 @@ export function LearnOcamlExercisePage() {
   const {
     learnOcaml, learnOcamlLoadExercise, learnOcamlSyncAnswer, learnOcamlGrade,
     isRunning,
-    capabilities, loadCapabilities, addNotification,
-    editorFontSize, consoleFontSize,
+    loadCapabilities, addNotification,
+    editorFontSize,
     showMemoryPanel, memoryPanelWidth, setMemoryPanelWidth,
     consoleHeight, setConsoleHeight,
   } = useStore();
@@ -40,7 +37,6 @@ export function LearnOcamlExercisePage() {
   const [showDescription, setShowDescription] = useState(true);
   const [showPrelude, setShowPrelude] = useState(false);
   const [showConsole, setShowConsole] = useState(true);
-  const [showGradePanel, setShowGradePanel] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const [descriptionWidth, setDescriptionWidth] = useState(DEFAULT_DESCRIPTION_WIDTH);
@@ -48,7 +44,7 @@ export function LearnOcamlExercisePage() {
   const descSplitDragRef = useRef<{ startY: number; startRatio: number; panelHeight: number } | null>(null);
   const leftPanelRef = useRef<HTMLDivElement | null>(null);
   const autoSyncRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasSetInitialCode = useRef(false);
+  const initializedExerciseId = useRef<string | null>(null);
   const codeRef = useRef(code);
   codeRef.current = code;
   const layoutRef = useRef<HTMLDivElement | null>(null);
@@ -88,31 +84,35 @@ export function LearnOcamlExercisePage() {
     window.addEventListener('pointerup', handlePointerUp, { once: true });
   }, [descSplitRatio]);
 
-  const exercise = learnOcaml.currentExercise;
-  const gradeResult = learnOcaml.lastGradeResult;
+  const { currentExercise: exercise, lastGradeResult: gradeResult, isLoadingExercise } = learnOcaml;
 
-  // Load exercise
+  // Load exercise — reset everything when exercise ID changes
+  const [loadAttempted, setLoadAttempted] = useState(false);
   useEffect(() => {
     loadCapabilities();
     if (decodedId) {
-      hasSetInitialCode.current = false;
-      learnOcamlLoadExercise(decodedId);
+      // Immediately clear stale state from previous exercise
+      setCode('');
+      setLastSyncTime(null);
+      setLoadAttempted(false);
+      learnOcamlLoadExercise(decodedId).finally(() => setLoadAttempted(true));
     }
   }, [decodedId]);
 
   // Set initial code from exercise data
   useEffect(() => {
-    if (exercise && !hasSetInitialCode.current) {
+    // Only set initial code if the exercise has successfully loaded AND matches the current route ID
+    if (exercise && exercise.pathId === decodedId && initializedExerciseId.current !== decodedId) {
       // Use the user's saved answer if available, otherwise use the template
       const initialCode = (exercise as any).userAnswer || exercise.template || '';
       setCode(initialCode);
-      hasSetInitialCode.current = true;
+      initializedExerciseId.current = decodedId;
     }
-  }, [exercise]);
+  }, [exercise, decodedId]);
 
   // Auto-sync on code change (debounced 10 seconds)
   useEffect(() => {
-    if (!decodedId || !code || !hasSetInitialCode.current) return;
+    if (!decodedId || !code || initializedExerciseId.current !== decodedId) return;
     if (autoSyncRef.current) clearTimeout(autoSyncRef.current);
     autoSyncRef.current = setTimeout(() => {
       handleSync(false);
@@ -120,7 +120,7 @@ export function LearnOcamlExercisePage() {
     return () => {
       if (autoSyncRef.current) clearTimeout(autoSyncRef.current);
     };
-  }, [code]);
+  }, [code, decodedId]);
 
   // ── Run Code ───────────────────────────────────────────────────────────
 
@@ -159,7 +159,6 @@ export function LearnOcamlExercisePage() {
     if (!decodedId || !code || learnOcaml.isGrading) return;
     try {
       await learnOcamlGrade(decodedId, code);
-      setShowGradePanel(true);
     } catch {
       // Error handled in store
     }
@@ -193,14 +192,37 @@ export function LearnOcamlExercisePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleRun, handleSync, handleGrade]);
 
-  // ── Loading State ──────────────────────────────────────────────────────
+  // ── Loading / Error States ─────────────────────────────────────────────
 
-  if (learnOcaml.isLoadingExercise || !exercise) {
+  if (isLoadingExercise || (!exercise && !loadAttempted)) {
     return (
       <div className="h-screen flex items-center justify-center bg-ide-bg">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="animate-spin text-brand-400" size={32} />
           <p className="text-t-muted">Loading exercise...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!exercise) {
+    return (
+      <div className="h-screen flex flex-col bg-ide-bg">
+        <Header mode="dashboard" />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <AlertCircle size={40} className="mx-auto text-t-ghost mb-4" />
+            <h2 className="text-lg font-semibold text-t-primary mb-2">Exercise unavailable</h2>
+            <p className="text-sm text-t-muted mb-6">
+              {learnOcaml.connection
+                ? 'This exercise could not be loaded. It may not exist on the server, or the connection failed.'
+                : 'You are not connected to a Learn OCaml server.'}
+            </p>
+            <button onClick={() => navigate('/learn-ocaml')} className="btn-primary">
+              <ArrowLeft size={16} />
+              Back to exercises
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -325,7 +347,9 @@ export function LearnOcamlExercisePage() {
                 <div
                   className="px-3 pb-3 text-sm text-t-secondary leading-relaxed overflow-auto learn-ocaml-description"
                   dangerouslySetInnerHTML={{
-                    __html: exercise.description || '<p class="text-t-faint">No description available.</p>',
+                    __html: exercise.description
+                      ? DOMPurify.sanitize(exercise.description)
+                      : '<p class="text-t-faint">No description available.</p>',
                   }}
                 />
               </div>

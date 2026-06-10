@@ -84,6 +84,8 @@ export interface ExecutionResult {
   errors: { line: number; column: number; message: string }[];
   memoryState: MemoryState;
   executionTimeMs: number;
+  /** Where the code actually ran: native OCaml on the server, or the in-browser interpreter. */
+  source?: 'server' | 'browser';
 }
 
 // ── UI Types ────────────────────────────────────────────────────────────────
@@ -144,6 +146,7 @@ export interface LearnOcamlExerciseIndexEntry {
 
 export interface LearnOcamlExercise {
   id: string;
+  pathId: string;
   title: string;
   description: string;  // HTML description
   prelude: string;       // prelude.ml content

@@ -192,7 +192,7 @@ export const createLearnOcamlSlice: StateCreator<AppState, [], [], LearnOcamlSli
 
       // Also sync the grade back to Learn OCaml server
       try {
-        await learnOcamlApi.gradeExercise(exerciseId, code);
+        await learnOcamlApi.syncGrade(exerciseId, result.grade, result.report as unknown[]);
       } catch {
         // Non-critical — grade was computed locally
       }

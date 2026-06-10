@@ -26,7 +26,6 @@ export function IDEPage() {
     user, currentProject, isProjectLoading, loadProject,
     activeFile, openTabs, setActiveFile, closeTab,
     showFileTree, showConsole, showMemoryPanel,
-    isRunning,
     isDirty, saveProject, capabilities, loadCapabilities,
     addNotification, memoryState,
     fileTreeWidth, memoryPanelWidth, fileTreeWidthMode, memoryPanelWidthMode,
@@ -78,6 +77,17 @@ export function IDEPage() {
       if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
     };
   }, [isDirty, user, saveProject]);
+
+  // Warn before leaving the page with unsaved changes
+  useEffect(() => {
+    if (!isDirty) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   useEffect(() => {
     if (!showFileTree || fileTreeWidthMode !== 'auto') return;

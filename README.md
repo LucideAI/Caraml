@@ -195,7 +195,9 @@ npm run start
 
 The following variables can be configured:
 
-* `JWT_SECRET` (Optional, but **highly recommended** for non-local environments).
+* `JWT_SECRET` (**Required in production**): Secret used to sign session tokens. If unset in production, an ephemeral secret is generated at startup (all sessions are invalidated on restart) and a warning is logged.
+* `CARAML_API_PORT` / `PORT` (Optional): Backend port (default `3001`).
+* `CARAML_ALLOWED_ORIGINS` (Optional): Comma-separated list of additional origins allowed by CORS (localhost origins are allowed by default).
 * `CARAML_OCAML_PATH` (Optional): Explicit path to the `ocaml` binary.
 * `CARAML_OCAMLMERLIN_PATH` (Optional): Explicit path to the `ocamlmerlin` binary.
 * `CARAML_OCAMLFORMAT_PATH` (Optional): Explicit path to the `ocamlformat` binary.
@@ -222,7 +224,7 @@ npm run dev:server
 
 ```
 
-*Note: The backend port is currently hardcoded to `3001` in `server.js`.*
+*Note: The backend listens on `3001` by default; override it with `CARAML_API_PORT` or `PORT`.*
 
 ---
 
@@ -291,6 +293,7 @@ Caraml/
 * `POST /api/learn-ocaml/exercise/*`
 * `POST /api/learn-ocaml/save`
 * `POST /api/learn-ocaml/sync-answer`
+* `POST /api/learn-ocaml/sync-grade`
 * `POST /api/learn-ocaml/grade` (fallback)
 * `POST /api/learn-ocaml/grader-worker`
 * `POST /api/learn-ocaml/exercise-raw/*`
@@ -318,4 +321,4 @@ Caraml/
 1. **System Fallback:** If the `ocaml` binary is not detected, the application remains fully operational via the browser interpreter to prevent system errors.
 2. **Merlin Availability:** If `ocamlmerlin` is missing, the editor reverts to local Monaco-based autocompletion.
 3. **Formatting:** If `ocamlformat` is missing, the "Format" button is disabled.
-4. **Security:** The default JWT secret located in `server.js` **must** be replaced with a secure environment variable for any real-world deployment.
+4. **Security:** Set `JWT_SECRET` in the environment for any real-world deployment. Auth endpoints are rate-limited (10 attempts/minute per IP), and CORS is restricted to localhost plus origins listed in `CARAML_ALLOWED_ORIGINS`.

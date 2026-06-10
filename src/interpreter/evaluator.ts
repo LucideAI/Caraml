@@ -1,9 +1,9 @@
 import {
   ASTNode, Value, Environment, Pattern,
-  VInt, VFloat, VString, VBool, VUnit, VList, VTuple, VFun, VRecFun, VRef, VConstructor, VBuiltin, VRecord, VArray,
+  VBool, VFun, VRecFun, VRef, VConstructor, VBuiltin,
   RuntimeError, MatchFailure, OCamlError,
 } from './types';
-import type { MemoryState, StackFrame as StackFrameType, VariableInfo, HeapObject } from '../types';
+import type { MemoryState, StackFrame as StackFrameType, VariableInfo } from '../types';
 import { displayValue as standaloneDisplayValue } from './display';
 
 // ═══════════════════════════════════════════════════════════════════════════
