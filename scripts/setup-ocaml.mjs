@@ -65,6 +65,45 @@ function run(cmd, args, options = {}) {
   });
 }
 
+function runBestEffort(cmd, args, options = {}) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, {
+      cwd: rootDir,
+      stdio: 'inherit',
+      ...options,
+    });
+
+    const startedAt = Date.now();
+    const phase = args[0] || cmd;
+    const heartbeat = setInterval(() => {
+      const elapsedSec = Math.floor((Date.now() - startedAt) / 1000);
+      const minutes = Math.floor(elapsedSec / 60);
+      const seconds = elapsedSec % 60;
+      console.log(`[setup:ocaml] still running (${minutes}m${seconds}s): ${phase}`);
+    }, 30000);
+
+    if (typeof heartbeat.unref === 'function') {
+      heartbeat.unref();
+    }
+
+    child.on('error', (error) => {
+      clearInterval(heartbeat);
+      console.warn(`[setup:ocaml] ${describeSpawnError(cmd, error)}`);
+      resolve(false);
+    });
+
+    child.on('close', (code) => {
+      clearInterval(heartbeat);
+      if (code !== 0) {
+        console.warn(`[setup:ocaml] ${cmd} ${args.join(' ')} failed with exit code ${code}`);
+        resolve(false);
+        return;
+      }
+      resolve(true);
+    });
+  });
+}
+
 function capture(cmd, args) {
   const result = spawnSync(cmd, args, {
     cwd: rootDir,
@@ -128,17 +167,28 @@ async function main() {
     await run(OPAM_BIN, ['switch', 'create', '.', TOOLCHAIN.compiler, '--yes', '--no-install']);
   } else {
     console.log(`\n[setup:ocaml] Reusing existing local switch at ${localSwitchDir}...`);
-    await run(OPAM_BIN, ['switch', 'set', '.', '--yes']);
   }
 
-  console.log('\n[setup:ocaml] Installing OCaml tooling (this can take several minutes on first run)...');
+  console.log('\n[setup:ocaml] Installing required OCaml tooling (this can take several minutes on first run)...');
   await run(OPAM_BIN, [
     'install',
+    '--switch=.',
     '--yes',
     TOOLCHAIN.compiler,
     TOOLCHAIN.merlin,
+  ]);
+
+  console.log('\n[setup:ocaml] Installing optional OCaml tooling...');
+  const ocamlformatInstalled = await runBestEffort(OPAM_BIN, [
+    'install',
+    '--switch=.',
+    '--yes',
     TOOLCHAIN.ocamlformat,
   ]);
+
+  if (!ocamlformatInstalled) {
+    console.warn('[setup:ocaml] ocamlformat installation failed. Formatting will remain disabled until installed.');
+  }
 
   const ocamlVersion = capture(OPAM_BIN, ['exec', '--switch=.', '--', 'ocaml', '-version']) || 'not found';
   const merlinVersion = capture(OPAM_BIN, ['exec', '--switch=.', '--', 'ocamlmerlin', '-version']) || 'not found';

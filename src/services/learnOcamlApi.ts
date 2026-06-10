@@ -68,15 +68,29 @@ class LearnOcamlApiClient {
       headers['Authorization'] = `Bearer ${mainToken}`;
     }
 
-    const response = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw err;
+      throw new Error('Cannot reach the server. Check your connection and try again.');
+    }
 
-    const data = await response.json();
+    let data: any = null;
+    try {
+      data = await response.json();
+    } catch {
+      // Non-JSON response — fall through to status check
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      throw new Error(data?.error || `Request failed (HTTP ${response.status})`);
+    }
+    if (data === null) {
+      throw new Error('Server returned an invalid response');
     }
 
     return data;
@@ -174,6 +188,25 @@ class LearnOcamlApiClient {
         token: conn.token,
         exerciseId,
         code,
+      }),
+    });
+  }
+
+  /**
+   * Sync a client-side grade result back to the Learn OCaml server.
+   * Called after Web Worker grading to store the grade on pf2.
+   */
+  async syncGrade(exerciseId: string, grade: number | null, report: unknown[]): Promise<void> {
+    const conn = this.getConnection();
+    if (!conn) throw new Error('Not connected to Learn OCaml');
+    return this.request('/sync-grade', {
+      method: 'POST',
+      body: JSON.stringify({
+        serverUrl: conn.serverUrl,
+        token: conn.token,
+        exerciseId,
+        grade,
+        report,
       }),
     });
   }

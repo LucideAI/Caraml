@@ -84,6 +84,8 @@ export interface ExecutionResult {
   errors: { line: number; column: number; message: string }[];
   memoryState: MemoryState;
   executionTimeMs: number;
+  /** Where the code actually ran: native OCaml on the server, or the in-browser interpreter. */
+  source?: 'server' | 'browser';
 }
 
 // ── UI Types ────────────────────────────────────────────────────────────────
@@ -100,6 +102,10 @@ export interface Notification {
   type: 'success' | 'error' | 'info' | 'warning';
   message: string;
   duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 // ── Learn OCaml Types ────────────────────────────────────────────────────────
@@ -140,6 +146,7 @@ export interface LearnOcamlExerciseIndexEntry {
 
 export interface LearnOcamlExercise {
   id: string;
+  pathId: string;
   title: string;
   description: string;  // HTML description
   prelude: string;       // prelude.ml content
@@ -150,9 +157,10 @@ export interface LearnOcamlExercise {
 }
 
 export interface LearnOcamlGradeResult {
-  grade: number;      // 0-100
-  max_grade: number;  // typically 100
+  grade: number | null; // 0-100 or null if grading unavailable
+  max_grade: number;    // typically 100
   report: LearnOcamlReportItem[];
+  message?: string;     // informational message (e.g. grading unavailable)
 }
 
 export interface LearnOcamlReportItem {

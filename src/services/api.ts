@@ -1,4 +1,19 @@
+import type { User, Project, ProjectListItem, ProjectFiles } from '../types';
+
 const API_BASE = '/api';
+
+interface CompileError {
+  line: number;
+  column: number;
+  message: string;
+}
+
+interface UpdateProjectData {
+  name?: string;
+  description?: string;
+  files?: ProjectFiles;
+  last_opened_file?: string;
+}
 
 class ApiClient {
   private token: string | null = null;
@@ -29,15 +44,29 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${path}`, {
-      ...options,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${API_BASE}${path}`, {
+        ...options,
+        headers,
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') throw err;
+      throw new Error('Cannot reach the server. Check your connection and try again.');
+    }
 
-    const data = await response.json();
+    let data: any = null;
+    try {
+      data = await response.json();
+    } catch {
+      // Non-JSON response (e.g. proxy error page) — fall through to status check
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || `HTTP ${response.status}`);
+      throw new Error(data?.error || `Request failed (HTTP ${response.status})`);
+    }
+    if (data === null) {
+      throw new Error('Server returned an invalid response');
     }
 
     return data;
@@ -45,25 +74,25 @@ class ApiClient {
 
   // ── Auth ────────────────────────────────────────────────────────────────
   async register(username: string, email: string, password: string) {
-    return this.request<{ token: string; user: any }>('/auth/register', {
+    return this.request<{ token: string; user: User }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ username, email, password }),
     });
   }
 
   async login(login: string, password: string) {
-    return this.request<{ token: string; user: any }>('/auth/login', {
+    return this.request<{ token: string; user: User }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ login, password }),
     });
   }
 
   async getMe() {
-    return this.request<{ user: any }>('/auth/me');
+    return this.request<{ user: User }>('/auth/me');
   }
 
   async updatePreferences(data: { panelWidths?: { fileTree?: number; memory?: number } }) {
-    return this.request<{ user: any }>('/auth/preferences', {
+    return this.request<{ user: User }>('/auth/preferences', {
       method: 'PUT',
       body: JSON.stringify(data),
     });
@@ -71,22 +100,22 @@ class ApiClient {
 
   // ── Projects ────────────────────────────────────────────────────────────
   async listProjects() {
-    return this.request<{ projects: any[] }>('/projects');
+    return this.request<{ projects: ProjectListItem[] }>('/projects');
   }
 
   async createProject(name: string, description?: string, template?: string) {
-    return this.request<{ project: any }>('/projects', {
+    return this.request<{ project: Project }>('/projects', {
       method: 'POST',
       body: JSON.stringify({ name, description, template }),
     });
   }
 
   async getProject(id: string) {
-    return this.request<{ project: any }>(`/projects/${id}`);
+    return this.request<{ project: Project }>(`/projects/${id}`);
   }
 
-  async updateProject(id: string, data: any) {
-    return this.request<{ project: any }>(`/projects/${id}`, {
+  async updateProject(id: string, data: UpdateProjectData) {
+    return this.request<{ project: Project }>(`/projects/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
@@ -112,11 +141,11 @@ class ApiClient {
   }
 
   async getSharedProject(shareId: string) {
-    return this.request<{ project: any }>(`/shared/${shareId}`);
+    return this.request<{ project: Project }>(`/shared/${shareId}`);
   }
 
   async forkProject(shareId: string) {
-    return this.request<{ project: any }>(`/shared/${shareId}/fork`, {
+    return this.request<{ project: Project }>(`/shared/${shareId}/fork`, {
       method: 'POST',
     });
   }
@@ -132,7 +161,7 @@ class ApiClient {
       stdout?: string;
       stderr?: string;
       exitCode?: number;
-      errors?: any[];
+      errors?: CompileError[];
       executionTimeMs?: number;
       message?: string;
     }>('/execute', {
@@ -147,7 +176,7 @@ class ApiClient {
       output?: string;
       rawOutput?: string;
       values?: { name: string; type: string; value: string }[];
-      errors?: any[];
+      errors?: CompileError[];
       exitCode?: number;
       executionTimeMs?: number;
     }>('/toplevel', {

@@ -190,7 +190,7 @@ export class Parser {
   }
 
   // ── Let / Let Rec ──────────────────────────────────────────────────────
-  private parseLet(requireIn: boolean): ASTNode {
+  private parseLet(_requireIn: boolean): ASTNode {
     const tok = this.advance(); // let
     const isRec = !!this.match(TokenType.REC);
 
