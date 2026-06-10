@@ -2,44 +2,44 @@
 
 **Comprehensive Web-Based OCaml IDE** (React Frontend + Express Backend) featuring code execution, memory visualization, project sharing, and Learn OCaml integration.
 
+<a id="table-of-contents"></a>
 ## 📑 Table of Contents
 
-* [Features](https://www.google.com/search?q=%23-features)
-* [Technical Stack](https://www.google.com/search?q=%23-technical-stack)
-* [Prerequisites](https://www.google.com/search?q=%23-prerequisites)
-* [Installation](https://www.google.com/search?q=%23-installation)
-* [Running the Project](https://www.google.com/search?q=%23-running-the-project)
-* [Environment Variables](https://www.google.com/search?q=%23-environment-variables)
-* [Project Structure](https://www.google.com/search?q=%23-project-structure)
-* [Core API](https://www.google.com/search?q=%23-core-api)
-* [Keyboard Shortcuts](https://www.google.com/search?q=%23-keyboard-shortcuts)
-* [Important Notes](https://www.google.com/search?q=%23-important-notes)
+* [Features](#features)
+* [Technical Stack](#technical-stack)
+* [Prerequisites](#prerequisites)
+* [Installation](#installation)
+* [Running the Project](#running-the-project)
+* [Environment Variables](#environment-variables)
+* [Project Structure](#project-structure)
+* [Core API](#core-api)
+* [Keyboard Shortcuts](#keyboard-shortcuts)
+* [Important Notes](#important-notes)
 
 ---
 
+<a id="features"></a>
 ## ✨ Features
 
 * 🔐 **User Authentication:** Secure registration and login via JWT.
 * 📂 **Project Management:** Create, edit, and delete multi-file OCaml projects.
 * 🎨 **Monaco Editor IDE:** Syntax highlighting, code snippets, auto-completion, and type hovering.
 * ⚡ **Robust OCaml Execution:**
-* **Native Backend Mode:** Uses the system `ocaml` binary (if available).
-* **Browser Fallback:** Seamlessly switches to an embedded in-browser OCaml interpreter if server tools are missing.
-
-
+    * **Native Backend Mode:** Uses the system `ocaml` binary (if available).
+    * **Browser Fallback:** Seamlessly switches to an embedded in-browser OCaml interpreter if server tools are missing.
 * 🛠️ **Optional Tool Integration:**
-* `ocamlmerlin` for advanced completion, type inference, and error reporting.
-* `ocamlformat` for automated code formatting.
-
-
+    * `ocamlmerlin` for advanced completion, type inference, and error reporting.
+    * `ocamlformat` for automated code formatting.
 * 🧠 **Memory Visualization:** Real-time inspection of the environment, stack, heap, and data types.
 * 🔗 **Social Sharing:** Public project sharing via unique links with forking capabilities.
 * 🎓 **Learn OCaml Integration:** Connect to instances, browse exercises, synchronize answers, and view grading reports (fully supports client-side grading via sandboxed Web Workers).
 
 ---
 
+<a id="technical-stack"></a>
 ## 🏗️ Technical Stack
 
+<a id="frontend"></a>
 ### ⚛️ Frontend
 
 * **Framework:** React 18 + TypeScript
@@ -49,6 +49,7 @@
 * **Styling:** Tailwind CSS
 * **Routing:** React Router
 
+<a id="backend"></a>
 ### 🔙 Backend
 
 * **Runtime:** Node.js + Express
@@ -57,22 +58,22 @@
 
 ---
 
+<a id="prerequisites"></a>
 ## 📋 Prerequisites
 
 * **Node.js 18+** (Recommended)
 * **npm**
 * **Optional** (For the full OCaml experience):
-* `ocaml`
-* `ocamlmerlin`
-* `ocamlformat`
-* `opam`
-
-
+    * `ocaml`
+    * `ocamlmerlin`
+    * `ocamlformat`
+    * `opam`
 
 > **⚠️ Important:** Server-side detection of OCaml tools is cross-platform (Windows, macOS, Linux). If these tools are not installed, the application will gracefully degrade and remain fully functional using the browser-based fallback engine without generating system errors.
 
 ---
 
+<a id="installation"></a>
 ## ⬇️ Installation
 
 Navigate to the `Caraml/` directory:
@@ -81,6 +82,8 @@ Navigate to the `Caraml/` directory:
 npm install
 
 ```
+
+<a id="automated-ocaml-setup"></a>
 
 ### ⚙️ Automated OCaml Toolchain Setup (Optional)
 
@@ -145,7 +148,11 @@ If you do not have `opam` installed, refer to the official documentation: [Insta
 
 ---
 
+<a id="running-the-project"></a>
+
 ## 🚀 Running the Project
+
+<a id="development-mode"></a>
 
 ### Development Mode (Frontend + Backend)
 
@@ -159,12 +166,16 @@ npm run dev
 * The frontend automatically proxies `/api` requests to the backend.
 * *Graceful Degradation:* If `ocaml`, `ocamlmerlin`, or `ocamlformat` are unavailable, the server cleanly switches to fallback mode, disabling backend-specific features.
 
+<a id="frontend-only"></a>
+
 ### Frontend Only
 
 ```bash
 npm run dev:client
 
 ```
+
+<a id="backend-only"></a>
 
 ### Backend Only
 
@@ -173,12 +184,16 @@ npm run dev:server
 
 ```
 
+<a id="production-build"></a>
+
 ### Production Build
 
 ```bash
 npm run build
 
 ```
+
+<a id="production-startup"></a>
 
 ### Production Startup
 
@@ -190,6 +205,8 @@ npm run start
 > **Note:** `npm run start` serves the contents of the `dist/` directory via Express. Ensure you execute `npm run build` prior to starting.
 
 ---
+
+<a id="environment-variables"></a>
 
 ## 🔧 Environment Variables
 
@@ -228,6 +245,8 @@ npm run dev:server
 
 ---
 
+<a id="project-structure"></a>
+
 ## 📂 Project Structure
 
 ```text
@@ -253,13 +272,19 @@ Caraml/
 
 ---
 
+<a id="core-api"></a>
+
 ## 📡 Core API
+
+<a id="auth-api"></a>
 
 ### Authentication
 
 * `POST /api/auth/register`
 * `POST /api/auth/login`
 * `GET /api/auth/me`
+
+<a id="projects-api"></a>
 
 ### Projects
 
@@ -269,12 +294,16 @@ Caraml/
 * `PUT /api/projects/:id`
 * `DELETE /api/projects/:id`
 
+<a id="sharing-api"></a>
+
 ### Sharing
 
 * `POST /api/projects/:id/share`
 * `POST /api/projects/:id/unshare`
 * `GET /api/shared/:shareId`
 * `POST /api/shared/:shareId/fork`
+
+<a id="tooling-api"></a>
 
 ### OCaml Tooling
 
@@ -285,6 +314,8 @@ Caraml/
 * `POST /api/merlin/complete`
 * `POST /api/merlin/type`
 * `POST /api/merlin/errors`
+
+<a id="learn-ocaml-api"></a>
 
 ### Learn OCaml
 
@@ -300,13 +331,19 @@ Caraml/
 
 ---
 
+<a id="keyboard-shortcuts"></a>
+
 ## ⌨️ Keyboard Shortcuts
+
+<a id="main-ide-shortcuts"></a>
 
 ### Main IDE
 
 * `Ctrl+Enter`: Run code
 * `Ctrl+S`: Save project
 * `Ctrl+Shift+F`: Format code (requires `ocamlformat`)
+
+<a id="learn-ocaml-shortcuts"></a>
 
 ### Learn OCaml Interface
 
@@ -316,9 +353,15 @@ Caraml/
 
 ---
 
+<a id="important-notes"></a>
+
 ## ℹ️ Important Notes
 
 1. **System Fallback:** If the `ocaml` binary is not detected, the application remains fully operational via the browser interpreter to prevent system errors.
 2. **Merlin Availability:** If `ocamlmerlin` is missing, the editor reverts to local Monaco-based autocompletion.
 3. **Formatting:** If `ocamlformat` is missing, the "Format" button is disabled.
-4. **Security:** Set `JWT_SECRET` in the environment for any real-world deployment. Auth endpoints are rate-limited (10 attempts/minute per IP), and CORS is restricted to localhost plus origins listed in `CARAML_ALLOWED_ORIGINS`.
+4. **Security:** The default JWT secret located in `server.js` **must** be replaced with a secure environment variable for any real-world deployment.
+
+```
+
+```
