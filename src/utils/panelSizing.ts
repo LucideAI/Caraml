@@ -56,6 +56,64 @@ function maxLineWidth(lines: string[]): number {
   return max;
 }
 
+export interface PanelFitInput {
+  kind: PanelKind;
+  width: number;
+  visible: boolean;
+}
+
+/**
+ * Compute panel widths that fit the viewport in ONE deterministic pass.
+ *
+ * Clamping each panel independently oscillates forever on narrow viewports:
+ * shrinking one panel frees space that pushes the other back up to its
+ * minimum, which re-shrinks the first one, and so on (React error #185).
+ * This function instead resolves all panels together and is a fixed point —
+ * feeding its output back returns the same values, so effects converge.
+ * Right-most panels shrink first; widths only drop below their minimum when
+ * even the minimums don't fit, in which case they scale proportionally.
+ */
+export function fitPanelsToViewport(
+  layoutWidth: number,
+  panels: PanelFitInput[]
+): Record<string, number> {
+  const visible = panels.filter((p) => p.visible);
+  const handleSpace = visible.length * RESIZE_HANDLE_WIDTH;
+  const available = Math.max(0, layoutWidth - EDITOR_MIN_WIDTH - handleSpace);
+
+  const widths = new Map<string, number>();
+  for (const p of visible) {
+    widths.set(p.kind, clampPanelWidth(p.kind, p.width));
+  }
+
+  const total = () => [...widths.values()].reduce((a, b) => a + b, 0);
+
+  // Shrink panels toward their minimum, starting from the right-most one.
+  for (let i = visible.length - 1; i >= 0 && total() > available; i--) {
+    const p = visible[i];
+    const current = widths.get(p.kind)!;
+    const shrinkable = current - PANEL_LIMITS[p.kind].min;
+    const overflow = total() - available;
+    if (shrinkable > 0) {
+      widths.set(p.kind, current - Math.min(shrinkable, overflow));
+    }
+  }
+
+  // Even the minimum widths overflow: scale everything proportionally.
+  const finalTotal = total();
+  if (finalTotal > available && finalTotal > 0) {
+    for (const [kind, width] of widths) {
+      widths.set(kind, Math.floor((width * available) / finalTotal));
+    }
+  }
+
+  const result: Record<string, number> = {};
+  for (const p of panels) {
+    result[p.kind] = p.visible ? widths.get(p.kind)! : p.width;
+  }
+  return result;
+}
+
 export function computeAutoFileTreeWidth(fileNames: string[]): number {
   if (!fileNames.length) return DEFAULT_FILE_TREE_WIDTH;
   const contentWidth = maxLineWidth(fileNames);

@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import {
   computeAutoMemoryPanelWidth,
-  PANEL_LIMITS,
+  fitPanelsToViewport,
 } from '../utils/panelSizing';
 
 export function SharedPage() {
@@ -44,7 +44,7 @@ export function SharedPage() {
     { kind: 'memory' as const, side: 'right' as const, width: memoryPanelWidth, setWidth: setMemoryPanelWidth, visible: showMemoryPanel },
   ], [memoryPanelWidth, showMemoryPanel, setMemoryPanelWidth]);
 
-  const { getLayoutWidth, getMaxWidthForPanel, startResize } = useResizablePanel({
+  const { getLayoutWidth, startResize } = useResizablePanel({
     layoutRef,
     panels,
     onResizeEnd: user ? persistPanelWidths : undefined,
@@ -67,17 +67,18 @@ export function SharedPage() {
   useEffect(() => {
     const clampPanelToViewport = () => {
       if (!showMemoryPanel) return;
-      const maxWidth = getMaxWidthForPanel('memory', getLayoutWidth());
-      const minWidth = Math.min(PANEL_LIMITS.memory.min, maxWidth);
-      if (memoryPanelWidth > maxWidth || memoryPanelWidth < minWidth) {
-        setMemoryPanelWidth(Math.max(minWidth, Math.min(maxWidth, memoryPanelWidth)));
+      const fitted = fitPanelsToViewport(getLayoutWidth(), [
+        { kind: 'memory', width: memoryPanelWidth, visible: showMemoryPanel },
+      ]);
+      if (fitted.memory !== memoryPanelWidth) {
+        setMemoryPanelWidth(fitted.memory);
       }
     };
 
     clampPanelToViewport();
     window.addEventListener('resize', clampPanelToViewport);
     return () => window.removeEventListener('resize', clampPanelToViewport);
-  }, [showMemoryPanel, memoryPanelWidth, getLayoutWidth, getMaxWidthForPanel, setMemoryPanelWidth]);
+  }, [showMemoryPanel, memoryPanelWidth, getLayoutWidth, setMemoryPanelWidth]);
 
   useEffect(() => {
     if (!shareId) return;

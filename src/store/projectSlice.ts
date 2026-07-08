@@ -10,7 +10,7 @@ export interface ProjectSlice {
   loadProjects: () => Promise<void>;
   loadProject: (id: string) => Promise<void>;
   createProject: (name: string, description?: string, template?: string) => Promise<Project>;
-  saveProject: () => Promise<void>;
+  saveProject: (options?: { silent?: boolean }) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
   lastSaved: Date | null;
@@ -71,7 +71,7 @@ export const createProjectSlice: StateCreator<AppState, [], [], ProjectSlice> = 
     return project;
   },
 
-  saveProject: async () => {
+  saveProject: async (options) => {
     const { currentProject } = get();
     if (!currentProject) return;
     try {
@@ -82,7 +82,10 @@ export const createProjectSlice: StateCreator<AppState, [], [], ProjectSlice> = 
         last_opened_file: get().activeFile,
       });
       set({ isDirty: false, lastSaved: new Date() });
-      get().addNotification('success', 'Project saved');
+      // Auto-save runs every 30s — only toast on explicit user saves
+      if (!options?.silent) {
+        get().addNotification('success', 'Project saved');
+      }
     } catch (err: unknown) {
       get().addNotification('error', err instanceof Error ? err.message : 'Failed to save');
     }

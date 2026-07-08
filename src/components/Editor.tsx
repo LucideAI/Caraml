@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import MonacoEditor, { OnMount, BeforeMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
+import { monaco as monacoApi } from '../editor/monacoSetup';
 import { useStore } from '../store';
 import { api } from '../services/api';
 import { registerOcamlLanguage } from '../editor/registerOcaml';
@@ -103,24 +104,22 @@ export function Editor({ onRun }: EditorProps) {
   // Update markers when execution result changes
   useEffect(() => {
     if (!editorRef.current) return;
-    const monaco = (window as any).monaco;
-    if (!monaco) return;
 
     const model = editorRef.current.getModel();
     if (!model) return;
 
     if (executionResult?.errors && executionResult.errors.length > 0) {
-      const markers = executionResult.errors.map((err: any) => ({
-        severity: monaco.MarkerSeverity.Error,
+      const markers = executionResult.errors.map((err) => ({
+        severity: monacoApi.MarkerSeverity.Error,
         startLineNumber: err.line || 1,
         startColumn: err.column || 1,
         endLineNumber: err.line || 1,
         endColumn: 1000,
         message: err.message,
       }));
-      monaco.editor.setModelMarkers(model, 'ocaml', markers);
+      monacoApi.editor.setModelMarkers(model, 'ocaml', markers);
     } else {
-      monaco.editor.setModelMarkers(model, 'ocaml', []);
+      monacoApi.editor.setModelMarkers(model, 'ocaml', []);
     }
   }, [executionResult]);
 

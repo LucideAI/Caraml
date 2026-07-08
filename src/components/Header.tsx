@@ -93,7 +93,7 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName, rende
             {isRunning ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
             <span className="hidden sm:inline">Run</span>
           </button>
-          <button onClick={saveProject} className="btn-secondary btn-sm gap-1.5" title="Save (Ctrl+S)">
+          <button onClick={() => saveProject()} className="btn-secondary btn-sm gap-1.5" title="Save (Ctrl+S)">
             <Save size={14} />
             <span className="hidden sm:inline">Save</span>
           </button>
