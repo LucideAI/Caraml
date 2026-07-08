@@ -16,7 +16,7 @@ import { Loader2, X } from 'lucide-react';
 import {
   computeAutoFileTreeWidth,
   computeAutoMemoryPanelWidth,
-  PANEL_LIMITS,
+  fitPanelsToViewport,
 } from '../utils/panelSizing';
 
 export function IDEPage() {
@@ -44,7 +44,7 @@ export function IDEPage() {
     { kind: 'memory' as const, side: 'right' as const, width: memoryPanelWidth, setWidth: setMemoryPanelWidth, visible: showMemoryPanel },
   ], [fileTreeWidth, memoryPanelWidth, showFileTree, showMemoryPanel, setFileTreeWidth, setMemoryPanelWidth]);
 
-  const { getLayoutWidth, getMaxWidthForPanel, startResize } = useResizablePanel({
+  const { getLayoutWidth, startResize } = useResizablePanel({
     layoutRef,
     panels,
     onResizeEnd: persistPanelWidths,
@@ -70,7 +70,7 @@ export function IDEPage() {
     if (isDirty && user) {
       if (autoSaveRef.current) clearTimeout(autoSaveRef.current);
       autoSaveRef.current = setTimeout(() => {
-        saveProject();
+        saveProject({ silent: true });
       }, 30000);
     }
     return () => {
@@ -101,20 +101,15 @@ export function IDEPage() {
 
   useEffect(() => {
     const clampPanelsToViewport = () => {
-      const layoutWidth = getLayoutWidth();
-      if (showFileTree) {
-        const maxWidth = getMaxWidthForPanel('fileTree', layoutWidth);
-        const minWidth = Math.min(PANEL_LIMITS.fileTree.min, maxWidth);
-        if (fileTreeWidth > maxWidth || fileTreeWidth < minWidth) {
-          setFileTreeWidth(Math.max(minWidth, Math.min(maxWidth, fileTreeWidth)));
-        }
+      const fitted = fitPanelsToViewport(getLayoutWidth(), [
+        { kind: 'fileTree', width: fileTreeWidth, visible: showFileTree },
+        { kind: 'memory', width: memoryPanelWidth, visible: showMemoryPanel },
+      ]);
+      if (showFileTree && fitted.fileTree !== fileTreeWidth) {
+        setFileTreeWidth(fitted.fileTree);
       }
-      if (showMemoryPanel) {
-        const maxWidth = getMaxWidthForPanel('memory', layoutWidth);
-        const minWidth = Math.min(PANEL_LIMITS.memory.min, maxWidth);
-        if (memoryPanelWidth > maxWidth || memoryPanelWidth < minWidth) {
-          setMemoryPanelWidth(Math.max(minWidth, Math.min(maxWidth, memoryPanelWidth)));
-        }
+      if (showMemoryPanel && fitted.memory !== memoryPanelWidth) {
+        setMemoryPanelWidth(fitted.memory);
       }
     };
 
@@ -127,7 +122,6 @@ export function IDEPage() {
     fileTreeWidth,
     memoryPanelWidth,
     getLayoutWidth,
-    getMaxWidthForPanel,
     setFileTreeWidth,
     setMemoryPanelWidth,
   ]);
@@ -244,6 +238,7 @@ export function IDEPage() {
                   activeFile === tab.filename ? 'tab-active' : ''
                 }`}
                 onClick={() => setActiveFile(tab.filename)}
+                onAuxClick={(e) => { if (e.button === 1) closeTab(tab.filename); }}
               >
                 <span className="text-xs">{tab.filename}</span>
                 {tab.isModified && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
