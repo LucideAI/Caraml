@@ -2,6 +2,11 @@ import type { StateCreator } from 'zustand';
 import type { Project, ProjectListItem } from '../types';
 import type { AppState } from './types';
 import { api } from '../services/api';
+import {
+  GUEST_PROJECT_ID,
+  loadGuestProject,
+  persistGuestProject,
+} from '../demo/guestProject';
 
 export interface ProjectSlice {
   projects: ProjectListItem[];
@@ -9,8 +14,9 @@ export interface ProjectSlice {
   isProjectLoading: boolean;
   loadProjects: () => Promise<void>;
   loadProject: (id: string) => Promise<void>;
+  openGuestProject: () => void;
   createProject: (name: string, description?: string, template?: string) => Promise<Project>;
-  saveProject: () => Promise<void>;
+  saveProject: (options?: { silent?: boolean }) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   setCurrentProject: (project: Project | null) => void;
   lastSaved: Date | null;
@@ -55,6 +61,21 @@ export const createProjectSlice: StateCreator<AppState, [], [], ProjectSlice> = 
     }
   },
 
+  openGuestProject: () => {
+    const project = loadGuestProject();
+    const firstFile = project.last_opened_file || 'main.ml';
+    set({
+      currentProject: project,
+      activeFile: firstFile,
+      openTabs: [{ filename: firstFile, isModified: false }],
+      isProjectLoading: false,
+      executionResult: null,
+      memoryState: null,
+      isDirty: false,
+      lastSaved: null,
+    });
+  },
+
   createProject: async (name, description, template) => {
     const { project } = await api.createProject(name, description, template);
     const listItem: ProjectListItem = {
@@ -71,9 +92,17 @@ export const createProjectSlice: StateCreator<AppState, [], [], ProjectSlice> = 
     return project;
   },
 
-  saveProject: async () => {
+  saveProject: async (options) => {
     const { currentProject } = get();
     if (!currentProject) return;
+    if (currentProject.id === GUEST_PROJECT_ID) {
+      persistGuestProject(currentProject);
+      set({ isDirty: false, lastSaved: new Date() });
+      if (!options?.silent) {
+        get().addNotification('success', 'Demo saved in this browser');
+      }
+      return;
+    }
     try {
       await api.updateProject(currentProject.id, {
         name: currentProject.name,
@@ -82,7 +111,10 @@ export const createProjectSlice: StateCreator<AppState, [], [], ProjectSlice> = 
         last_opened_file: get().activeFile,
       });
       set({ isDirty: false, lastSaved: new Date() });
-      get().addNotification('success', 'Project saved');
+      // Auto-save runs every 30s — only toast on explicit user saves
+      if (!options?.silent) {
+        get().addNotification('success', 'Project saved');
+      }
     } catch (err: unknown) {
       get().addNotification('error', err instanceof Error ? err.message : 'Failed to save');
     }

@@ -1,367 +1,134 @@
+<div align="center">
+
 # 🐫 Caraml
 
-**Comprehensive Web-Based OCaml IDE** (React Frontend + Express Backend) featuring code execution, memory visualization, project sharing, and Learn OCaml integration.
+### A full-stack OCaml IDE that runs in your browser
 
-<a id="table-of-contents"></a>
-## 📑 Table of Contents
+Write, run, inspect, learn, and share OCaml code with a custom TypeScript interpreter, Monaco Editor, memory visualization, and optional native tooling.
 
-* [Features](#features)
-* [Technical Stack](#technical-stack)
-* [Prerequisites](#prerequisites)
-* [Installation](#installation)
-* [Running the Project](#running-the-project)
-* [Environment Variables](#environment-variables)
-* [Project Structure](#project-structure)
-* [Core API](#core-api)
-* [Keyboard Shortcuts](#keyboard-shortcuts)
-* [Important Notes](#important-notes)
+[![CI](https://github.com/LucideAI/Caraml/actions/workflows/ci.yml/badge.svg)](https://github.com/LucideAI/Caraml/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/LucideAI/Caraml)](https://github.com/LucideAI/Caraml/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-cyan.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-20%2B-339933?logo=node.js&logoColor=white)](package.json)
 
----
+**[Live browser demo](https://lucideai.github.io/Caraml/)** · **[Architecture](ARCHITECTURE.md)** · **[Contributing](CONTRIBUTING.md)**
 
-<a id="features"></a>
-## ✨ Features
+</div>
 
-* 🔐 **User Authentication:** Secure registration and login via JWT.
-* 📂 **Project Management:** Create, edit, and delete multi-file OCaml projects.
-* 🎨 **Monaco Editor IDE:** Syntax highlighting, code snippets, auto-completion, and type hovering.
-* ⚡ **Robust OCaml Execution:**
-    * **Native Backend Mode:** Uses the system `ocaml` binary (if available).
-    * **Browser Fallback:** Seamlessly switches to an embedded in-browser OCaml interpreter if server tools are missing.
-* 🛠️ **Optional Tool Integration:**
-    * `ocamlmerlin` for advanced completion, type inference, and error reporting.
-    * `ocamlformat` for automated code formatting.
-* 🧠 **Memory Visualization:** Real-time inspection of the environment, stack, heap, and data types.
-* 🔗 **Social Sharing:** Public project sharing via unique links with forking capabilities.
-* 🎓 **Learn OCaml Integration:** Connect to instances, browse exercises, synchronize answers, and view grading reports (fully supports client-side grading via sandboxed Web Workers).
+![Caraml IDE showing OCaml execution and memory visualization](docs/assets/caraml-ide.png)
 
----
+## Why Caraml stands out
 
-<a id="technical-stack"></a>
-## 🏗️ Technical Stack
+- **Interpreter engineering:** a purpose-built OCaml lexer, parser, AST evaluator, standard-library subset, and structured diagnostics written in TypeScript.
+- **Two execution modes:** instant browser execution everywhere, plus official OCaml, Merlin, and OCamlFormat tooling when a trusted backend is available.
+- **Runtime visibility:** inspect lexical environments, stack frames, heap objects, references, arrays, and user-defined types after execution.
+- **Complete product workflow:** authentication, multi-file projects, autosave, public sharing, forking, responsive layouts, and persisted preferences.
+- **Learning integration:** connect to Learn OCaml instances, browse exercises, synchronize answers, and render grading reports.
+- **Zero-friction demo:** visitors can open a seeded project, edit it, run it, and save it locally without creating an account.
 
-<a id="frontend"></a>
-### ⚛️ Frontend
+## Architecture at a glance
 
-* **Framework:** React 18 + TypeScript
-* **Build Tool:** Vite 5
-* **State Management:** Zustand
-* **Editor:** Monaco Editor
-* **Styling:** Tailwind CSS
-* **Routing:** React Router
+```mermaid
+flowchart LR
+  A[React + Monaco] --> B{Code runner}
+  B --> C[Browser interpreter]
+  C --> D[Lexer → Parser → Evaluator]
+  D --> E[Stack / Heap / Environment]
+  B --> F[Express API]
+  F --> G[OCaml / Merlin / OCamlFormat]
+  F --> H[(SQLite)]
+  F --> I[Learn OCaml]
+```
 
-<a id="backend"></a>
-### 🔙 Backend
+Read the detailed design and production boundaries in [ARCHITECTURE.md](ARCHITECTURE.md).
 
-* **Runtime:** Node.js + Express
-* **Database:** SQLite (`better-sqlite3`)
-* **Security:** JWT (`jsonwebtoken`) & Password Hashing (`bcryptjs`)
+## Quick start
 
----
-
-<a id="prerequisites"></a>
-## 📋 Prerequisites
-
-* **Node.js 18+** (Recommended)
-* **npm**
-* **Optional** (For the full OCaml experience):
-    * `ocaml`
-    * `ocamlmerlin`
-    * `ocamlformat`
-    * `opam`
-
-> **⚠️ Important:** Server-side detection of OCaml tools is cross-platform (Windows, macOS, Linux). If these tools are not installed, the application will gracefully degrade and remain fully functional using the browser-based fallback engine without generating system errors.
-
----
-
-<a id="installation"></a>
-## ⬇️ Installation
-
-Navigate to the `Caraml/` directory:
+Requirements: Node.js 20.19+ (or 22.12+) and npm. OCaml is optional because Caraml includes its own browser interpreter.
 
 ```bash
+git clone https://github.com/LucideAI/Caraml.git
+cd Caraml
 npm install
-
+npm run dev:no-ocaml
 ```
 
-<a id="automated-ocaml-setup"></a>
+Open `http://localhost:5173`, then select **Try Live Demo**.
 
-### ⚙️ Automated OCaml Toolchain Setup (Optional)
+The hosted [GitHub Pages demo](https://lucideai.github.io/Caraml/) is browser-only: execution and local saving work without an account, while authentication and sharing are available in a self-hosted full-stack deployment.
 
-To ensure portability and reduce repository size, binary files (`ocaml`, `ocamlmerlin`, `ocamlformat`) are not versioned in Git. Instead, the project provides a reproducible installation script via `opam`.
-
-**For Windows Users** (requires `winget`):
-
-```powershell
-winget install Git.Git OCaml.opam
-
-```
-
-**Run the setup script:**
+For the full local OCaml toolchain:
 
 ```bash
 npm run setup:ocaml
-
-```
-
-This script creates (or reuses) a local switch in `./_opam` and installs:
-
-* `ocaml-base-compiler.5.4.0`
-* `merlin.5.6.1-504`
-* `ocamlformat.0.28.1`
-
-**Script Behavior:**
-
-* If `opam` is present but uninitialized, the script automatically executes `opam init` (using `--cygwin-internal-install` on Windows to bypass interactive prompts).
-* During long-running processes (such as OCaml compilation), the script displays a periodic `still running (...)` heartbeat.
-
-**Auto-Bootstrap System:**
-Subsequently, `npm run dev` automatically detects these tools. It also performs an auto-bootstrap check (`ensure:ocaml`) on startup:
-
-1. If the toolchain is missing and `opam` is available, it automatically triggers `setup:ocaml`.
-2. On Windows, if `opam` is missing, it attempts installation via `winget`, followed by the official opam script (best-effort).
-3. If installation fails, the application starts in **Browser Fallback Mode**.
-
-**To disable auto-bootstrap:**
-
-```bash
-npm run dev:no-ocaml
-
-```
-
-Or via environment variables/options:
-
-```bash
-CARAML_SKIP_OCAML_AUTO_SETUP=1 npm run dev
-# OR
-npm run dev -- --skip-ocaml
-
-```
-
-**PowerShell:**
-
-```powershell
-$env:CARAML_SKIP_OCAML_AUTO_SETUP="1"; npm run dev
-
-```
-
-If you do not have `opam` installed, refer to the official documentation: [Install OCaml](https://opam.ocaml.org/doc/Install.html)
-
----
-
-<a id="running-the-project"></a>
-
-## 🚀 Running the Project
-
-<a id="development-mode"></a>
-
-### Development Mode (Frontend + Backend)
-
-```bash
 npm run dev
-
 ```
 
-* **Frontend:** `http://localhost:5173`
-* **Backend API:** `http://localhost:3001` (Incremented automatically if port 3001 is busy)
-* The frontend automatically proxies `/api` requests to the backend.
-* *Graceful Degradation:* If `ocaml`, `ocamlmerlin`, or `ocamlformat` are unavailable, the server cleanly switches to fallback mode, disabling backend-specific features.
+The setup script creates a repository-local opam switch and installs pinned OCaml, Merlin, and OCamlFormat versions. If setup is unavailable, Caraml degrades gracefully to browser execution.
 
-<a id="frontend-only"></a>
-
-### Frontend Only
+## Quality checks
 
 ```bash
-npm run dev:client
-
-```
-
-<a id="backend-only"></a>
-
-### Backend Only
-
-```bash
-npm run dev:server
-
-```
-
-<a id="production-build"></a>
-
-### Production Build
-
-```bash
+npm run typecheck
+npm test
 npm run build
 
+# Or run the complete local gate
+npm run check
 ```
 
-<a id="production-startup"></a>
+The CI matrix validates Node.js 20 and 22 on Linux and Windows.
 
-### Production Startup
+## Docker deployment
 
 ```bash
-npm run start
-
+cp .env.example .env
+# Set a strong JWT_SECRET in .env
+docker compose up --build
 ```
 
-> **Note:** `npm run start` serves the contents of the `dist/` directory via Express. Ensure you execute `npm run build` prior to starting.
+The production container runs as a non-root user, persists SQLite under `/data`, and keeps native OCaml execution disabled. Browser execution remains fully available.
 
----
+## Technology
 
-<a id="environment-variables"></a>
+| Area | Stack |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, Zustand, Tailwind CSS |
+| Editor | Monaco Editor, custom OCaml language services |
+| Interpreter | Custom lexer, parser, evaluator, runtime and memory model |
+| Backend | Node.js, Express, SQLite, JWT, bcrypt |
+| OCaml tooling | OCaml, Merlin, OCamlFormat, opam |
+| Quality | Vitest, GitHub Actions, Dependabot, Docker |
 
-## 🔧 Environment Variables
+## Configuration
 
-The following variables can be configured:
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `JWT_SECRET` | Signs authentication tokens; required for stable production sessions | Ephemeral in production |
+| `PORT` / `CARAML_API_PORT` | Express API and production web port | `3001` |
+| `CARAML_DB_PATH` | SQLite database location | `./caraml.db` |
+| `CARAML_ALLOWED_ORIGINS` | Additional comma-separated CORS origins | None |
+| `CARAML_ENABLE_NATIVE_EXECUTION` | Explicitly enables native tools in production | `0` |
+| `CARAML_MAX_CODE_BYTES` | Maximum submitted source size | `100000` |
+| `CARAML_OCAML_PATH` | Explicit OCaml executable | Auto-detected |
+| `CARAML_OCAMLMERLIN_PATH` | Explicit Merlin executable | Auto-detected |
+| `CARAML_OCAMLFORMAT_PATH` | Explicit OCamlFormat executable | Auto-detected |
 
-* `JWT_SECRET` (**Required in production**): Secret used to sign session tokens. If unset in production, an ephemeral secret is generated at startup (all sessions are invalidated on restart) and a warning is logged.
-* `CARAML_API_PORT` / `PORT` (Optional): Backend port (default `3001`).
-* `CARAML_ALLOWED_ORIGINS` (Optional): Comma-separated list of additional origins allowed by CORS (localhost origins are allowed by default).
-* `CARAML_OCAML_PATH` (Optional): Explicit path to the `ocaml` binary.
-* `CARAML_OCAMLMERLIN_PATH` (Optional): Explicit path to the `ocamlmerlin` binary.
-* `CARAML_OCAMLFORMAT_PATH` (Optional): Explicit path to the `ocamlformat` binary.
+See [.env.example](.env.example) for a production-oriented template.
 
-**Bash Example:**
+## Keyboard shortcuts
 
-```bash
-JWT_SECRET="change-me" \
-CARAML_OCAML_PATH="/usr/local/bin/ocaml" \
-CARAML_OCAMLMERLIN_PATH="/usr/local/bin/ocamlmerlin" \
-CARAML_OCAMLFORMAT_PATH="/usr/local/bin/ocamlformat" \
-npm run dev:server
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl/Cmd + Enter` | Run the active OCaml file |
+| `Ctrl/Cmd + S` | Save the project or browser-local demo |
+| `Ctrl/Cmd + Shift + F` | Format with OCamlFormat when available |
+| `Ctrl/Cmd + Shift + G` | Submit a Learn OCaml exercise |
 
-```
+## API surface
 
-**PowerShell Example:**
+The Express API covers authentication, projects, sharing, native tooling capabilities, execution, Merlin services, formatting, and Learn OCaml synchronization. See [ARCHITECTURE.md](ARCHITECTURE.md) for trust boundaries and [SECURITY.md](SECURITY.md) before enabling native execution publicly.
 
-```powershell
-$env:JWT_SECRET="change-me"
-$env:CARAML_OCAML_PATH="C:\\Tools\\OCaml\\bin\\ocaml.exe"
-$env:CARAML_OCAMLMERLIN_PATH="C:\\Tools\\OCaml\\bin\\ocamlmerlin.exe"
-$env:CARAML_OCAMLFORMAT_PATH="C:\\Tools\\OCaml\\bin\\ocamlformat.exe"
-npm run dev:server
+## License
 
-```
-
-*Note: The backend listens on `3001` by default; override it with `CARAML_API_PORT` or `PORT`.*
-
----
-
-<a id="project-structure"></a>
-
-## 📂 Project Structure
-
-```text
-Caraml/
-|-- src/
-|   |-- components/       # UI Components (Header, Editor, Console, Modals...)
-|   |-- pages/            # Dashboard, IDE, Share, Learn OCaml
-|   |-- services/         # Frontend API Clients
-|   |-- store/            # Global Zustand Store
-|   `-- interpreter/      # Browser-based OCaml Interpreter (Fallback)
-|-- server.js             # Express API + SQLite + OCaml Tooling
-|-- package.json
-|-- tailwind.config.js
-`-- vite.config.ts
-
-```
-
-**Local SQLite Database Files:**
-
-* `caraml.db`
-* `caraml.db-shm`
-* `caraml.db-wal`
-
----
-
-<a id="core-api"></a>
-
-## 📡 Core API
-
-<a id="auth-api"></a>
-
-### Authentication
-
-* `POST /api/auth/register`
-* `POST /api/auth/login`
-* `GET /api/auth/me`
-
-<a id="projects-api"></a>
-
-### Projects
-
-* `GET /api/projects`
-* `POST /api/projects`
-* `GET /api/projects/:id`
-* `PUT /api/projects/:id`
-* `DELETE /api/projects/:id`
-
-<a id="sharing-api"></a>
-
-### Sharing
-
-* `POST /api/projects/:id/share`
-* `POST /api/projects/:id/unshare`
-* `GET /api/shared/:shareId`
-* `POST /api/shared/:shareId/fork`
-
-<a id="tooling-api"></a>
-
-### OCaml Tooling
-
-* `GET /api/capabilities`
-* `POST /api/execute`
-* `POST /api/toplevel`
-* `POST /api/format`
-* `POST /api/merlin/complete`
-* `POST /api/merlin/type`
-* `POST /api/merlin/errors`
-
-<a id="learn-ocaml-api"></a>
-
-### Learn OCaml
-
-* `POST /api/learn-ocaml/connect`
-* `POST /api/learn-ocaml/exercises`
-* `POST /api/learn-ocaml/exercise/*`
-* `POST /api/learn-ocaml/save`
-* `POST /api/learn-ocaml/sync-answer`
-* `POST /api/learn-ocaml/sync-grade`
-* `POST /api/learn-ocaml/grade` (fallback)
-* `POST /api/learn-ocaml/grader-worker`
-* `POST /api/learn-ocaml/exercise-raw/*`
-
----
-
-<a id="keyboard-shortcuts"></a>
-
-## ⌨️ Keyboard Shortcuts
-
-<a id="main-ide-shortcuts"></a>
-
-### Main IDE
-
-* `Ctrl+Enter`: Run code
-* `Ctrl+S`: Save project
-* `Ctrl+Shift+F`: Format code (requires `ocamlformat`)
-
-<a id="learn-ocaml-shortcuts"></a>
-
-### Learn OCaml Interface
-
-* `Ctrl+Enter`: Run code
-* `Ctrl+S`: Sync answer
-* `Ctrl+Shift+G`: Submit for grading
-
----
-
-<a id="important-notes"></a>
-
-## ℹ️ Important Notes
-
-1. **System Fallback:** If the `ocaml` binary is not detected, the application remains fully operational via the browser interpreter to prevent system errors.
-2. **Merlin Availability:** If `ocamlmerlin` is missing, the editor reverts to local Monaco-based autocompletion.
-3. **Formatting:** If `ocamlformat` is missing, the "Format" button is disabled.
-4. **Security:** The default JWT secret located in `server.js` **must** be replaced with a secure environment variable for any real-world deployment.
-
-```
-
-```
+Caraml is available under the [MIT License](LICENSE).

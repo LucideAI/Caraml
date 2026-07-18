@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible problem in Caraml
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the OCaml snippet and the execution mode when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. Open...\n2. Run...\n3. See..."
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and operating system
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      render: shell

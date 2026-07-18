@@ -10,19 +10,25 @@ import {
   Plus, FolderOpen, Trash2, Share2, Clock, Code, Loader2,
   Search, BookOpen, Sparkles, ArrowRight, ExternalLink,
   GraduationCap, Zap, Globe, CheckCircle2, ChevronRight, Trophy,
-  AlertTriangle,
+  AlertTriangle, Play,
 } from 'lucide-react';
 
 export function DashboardPage() {
+  const isStaticDemo = import.meta.env.VITE_STATIC_DEMO === 'true';
   const navigate = useNavigate();
   const {
     user, projects, loadProjects, deleteProject, isProjectLoading,
     setShowAuthModal, setShowNewProjectModal, addNotification,
-    learnOcaml, setShowLearnOcamlModal,
+    learnOcaml, setShowLearnOcamlModal, openGuestProject,
   } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const openDemo = () => {
+    openGuestProject();
+    navigate('/ide/demo');
+  };
 
   useEffect(() => {
     if (user) loadProjects();
@@ -81,10 +87,15 @@ export function DashboardPage() {
                 Professional OCaml IDE in your browser. Write, run, debug, and share
                 OCaml code with memory visualization — no setup required.
               </p>
-              <div className="flex items-center justify-center gap-4">
-                <button onClick={() => setShowAuthModal(true)} className="btn-primary text-base px-8 py-3">
-                  Get Started <ArrowRight size={18} />
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button onClick={openDemo} className="btn-primary text-base px-8 py-3">
+                  <Play size={17} /> Try Live Demo <ArrowRight size={18} />
                 </button>
+                {!isStaticDemo && (
+                  <button onClick={() => setShowAuthModal(true)} className="btn-secondary text-base px-6 py-3">
+                    Sign In to Save
+                  </button>
+                )}
               </div>
             </div>
 
@@ -158,6 +169,9 @@ let () =
         Printf.printf "%d " n);
     print_newline ()`}</code>
               </pre>
+              <button onClick={openDemo} className="btn-secondary btn-sm mt-5">
+                <Play size={14} /> Open this example in the IDE
+              </button>
             </div>
           </div>
         ) : (

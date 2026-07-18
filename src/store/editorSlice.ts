@@ -22,8 +22,9 @@ export const createEditorSlice: StateCreator<AppState, [], [], EditorSlice> = (s
 
   setActiveFile: (filename) => {
     set({ activeFile: filename });
-    const { currentProject } = get();
-    if (currentProject) {
+    const { currentProject, user } = get();
+    // Persist only for projects the user owns (shared projects would 404)
+    if (currentProject && user && currentProject.is_owner !== false) {
       api.updateProject(currentProject.id, { last_opened_file: filename }).catch(() => { });
     }
   },
