@@ -23,6 +23,10 @@ export const useStore = create<AppState>()((set, get, store) => ({
   // ── Capabilities ────────────────────────────────────────────────────────
   capabilities: { ocaml: false, ocamlVersion: null, merlin: false, ocamlformat: false },
   loadCapabilities: async () => {
+    if (import.meta.env.VITE_STATIC_DEMO === 'true') {
+      set({ capabilities: { ocaml: false, ocamlVersion: null, merlin: false, ocamlformat: false } });
+      return;
+    }
     try {
       const caps = await api.getCapabilities();
       set({ capabilities: caps });
