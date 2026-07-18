@@ -1,11 +1,35 @@
 import { Router } from 'express';
-import { spawn, execFileSync } from 'child_process';
+import { spawn, execFile, execFileSync } from 'child_process';
+import { promisify } from 'util';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'fs';
 import { join, delimiter } from 'path';
 import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
+import { rateLimit } from '../middleware.js';
+
+const execFileAsync = promisify(execFile);
 
 const router = Router();
+
+const configuredMaxCodeBytes = Number.parseInt(process.env.CARAML_MAX_CODE_BYTES || '', 10);
+const MAX_CODE_BYTES = Number.isFinite(configuredMaxCodeBytes) && configuredMaxCodeBytes > 0
+  ? configuredMaxCodeBytes
+  : 100_000;
+const NATIVE_EXECUTION_ENABLED = process.env.NODE_ENV !== 'production'
+  || process.env.CARAML_ENABLE_NATIVE_EXECUTION === '1';
+
+// Anonymous endpoints that spawn processes — keep abuse in check.
+const executeRateLimit = rateLimit({ windowMs: 60_000, max: 30 });
+const merlinRateLimit = rateLimit({ windowMs: 60_000, max: 120 });
+
+// Keep native process endpoints bounded. Production defaults to the browser
+// interpreter unless the operator explicitly enables an external sandbox.
+router.use((req, res, next) => {
+  if (typeof req.body?.code === 'string' && Buffer.byteLength(req.body.code, 'utf8') > MAX_CODE_BYTES) {
+    return res.status(413).json({ error: `Code exceeds the ${MAX_CODE_BYTES}-byte limit` });
+  }
+  next();
+});
 
 // ── Detect available OCaml tools ────────────────────────────────────────────
 function getPathKey(env) {
@@ -27,7 +51,15 @@ function pathsEqual(a, b) {
 }
 
 function buildToolEnv() {
-  const env = { ...process.env };
+  // Never expose application secrets (JWT_SECRET, database configuration,
+  // deployment credentials, etc.) to user-submitted OCaml programs.
+  const env = {};
+  for (const key of [
+    'PATH', 'Path', 'PATHEXT', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP',
+    'HOME', 'USERPROFILE', 'OPAMROOT', 'OPAMSWITCH',
+  ]) {
+    if (process.env[key]) env[key] = process.env[key];
+  }
   const pathKey = getPathKey(env);
   const pathValue = env[pathKey] || '';
   const pathEntries = pathValue.split(delimiter).map((entry) => entry.trim()).filter(Boolean);
@@ -102,9 +134,9 @@ function resolveTool(toolName, overrideEnvVar, env) {
 }
 
 const TOOL_ENV = buildToolEnv();
-const OCAML_PATH = resolveTool('ocaml', 'CARAML_OCAML_PATH', TOOL_ENV);
-const OCAMLMERLIN_PATH = resolveTool('ocamlmerlin', 'CARAML_OCAMLMERLIN_PATH', TOOL_ENV);
-const OCAMLFORMAT_PATH = resolveTool('ocamlformat', 'CARAML_OCAMLFORMAT_PATH', TOOL_ENV);
+const OCAML_PATH = NATIVE_EXECUTION_ENABLED ? resolveTool('ocaml', 'CARAML_OCAML_PATH', TOOL_ENV) : null;
+const OCAMLMERLIN_PATH = NATIVE_EXECUTION_ENABLED ? resolveTool('ocamlmerlin', 'CARAML_OCAMLMERLIN_PATH', TOOL_ENV) : null;
+const OCAMLFORMAT_PATH = NATIVE_EXECUTION_ENABLED ? resolveTool('ocamlformat', 'CARAML_OCAMLFORMAT_PATH', TOOL_ENV) : null;
 const OCAML_VERSION = OCAML_PATH ? (() => {
   try {
     return execFileSync(OCAML_PATH, ['-version'], {
@@ -120,33 +152,41 @@ const OCAML_VERSION = OCAML_PATH ? (() => {
 
 export function logToolchain() {
   console.log('  OCaml toolchain:');
+  if (!NATIVE_EXECUTION_ENABLED) {
+    console.log('    native execution disabled in production (browser interpreter active)');
+  }
   console.log(`    ocaml:       ${OCAML_PATH || '(not found — fallback to browser interpreter)'}`);
   console.log(`    ocamlmerlin: ${OCAMLMERLIN_PATH || '(not found — basic completions only)'}`);
   console.log(`    ocamlformat: ${OCAMLFORMAT_PATH || '(not found — formatting disabled)'}`);
   console.log('');
 }
 
-// ── Merlin helper ───────────────────────────────────────────────────────────
+// ── Merlin helper (async — must not block the event loop) ───────────────────
 function runMerlin(command, code) {
-  const tmpDir = join(tmpdir(), `caraml-merlin-${randomUUID()}`);
-  mkdirSync(tmpDir, { recursive: true });
-  const tmpFile = join(tmpDir, 'code.ml');
-  writeFileSync(tmpFile, code);
+  return new Promise((resolve, reject) => {
+    const tmpDir = join(tmpdir(), `caraml-merlin-${randomUUID()}`);
+    mkdirSync(tmpDir, { recursive: true });
+    const tmpFile = join(tmpDir, 'code.ml');
+    writeFileSync(tmpFile, code);
 
-  try {
-    const result = execFileSync(OCAMLMERLIN_PATH, ['single', ...command, '-filename', 'code.ml'], {
-      encoding: 'utf8',
-      timeout: 5000,
-      cwd: tmpDir,
-      input: code,
-      env: TOOL_ENV,
-    });
-    rmSync(tmpDir, { recursive: true, force: true });
-    return JSON.parse(result);
-  } catch (err) {
-    rmSync(tmpDir, { recursive: true, force: true });
-    throw err;
-  }
+    const child = execFile(
+      OCAMLMERLIN_PATH,
+      ['single', ...command, '-filename', 'code.ml'],
+      { encoding: 'utf8', timeout: 5000, cwd: tmpDir, env: TOOL_ENV },
+      (err, stdout) => {
+        try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
+        if (err) return reject(err);
+        try {
+          resolve(JSON.parse(stdout));
+        } catch (parseErr) {
+          reject(parseErr);
+        }
+      }
+    );
+    child.stdin.on('error', () => {}); // tolerate early process exit
+    child.stdin.write(code);
+    child.stdin.end();
+  });
 }
 
 // ── Routes ──────────────────────────────────────────────────────────────────
@@ -159,7 +199,7 @@ router.get('/capabilities', (req, res) => {
   });
 });
 
-router.post('/execute', (req, res) => {
+router.post('/execute', executeRateLimit, (req, res) => {
   const { code } = req.body;
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ error: 'Code is required' });
@@ -224,7 +264,7 @@ router.post('/execute', (req, res) => {
   });
 });
 
-router.post('/toplevel', (req, res) => {
+router.post('/toplevel', executeRateLimit, (req, res) => {
   const { code } = req.body;
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ error: 'Code is required' });
@@ -264,8 +304,8 @@ router.post('/toplevel', (req, res) => {
     const executionTimeMs = Date.now() - startTime;
 
     let fullOutput = stdout
-      .replace(/^OCaml version.*\n/m, '')
-      .replace(/^Enter #help;;.*\n?/m, '');
+      .replace(/^\s*OCaml version[^\n]*\n/m, '')
+      .replace(/^\s*Enter #help;;[^\n]*\n?/m, '');
 
     const values = [];
     const valRegex = /val\s+(\w+)\s*:\s*([^=]+)=\s*(.*)/g;
@@ -304,8 +344,8 @@ router.post('/toplevel', (req, res) => {
     }
 
     let cleanedOutput = stdout
-      .replace(/^OCaml version.*\n/m, '')
-      .replace(/^Enter #help;;.*\n?/m, '')
+      .replace(/^\s*OCaml version[^\n]*\n/m, '')
+      .replace(/^\s*Enter #help;;[^\n]*\n?/m, '')
       .replace(/\n+$/g, '\n');
 
     const programOutput = cleanedOutput
@@ -325,16 +365,18 @@ router.post('/toplevel', (req, res) => {
   });
 });
 
-router.post('/format', (req, res) => {
+router.post('/format', executeRateLimit, async (req, res) => {
   const { code } = req.body;
-  if (!code) return res.status(400).json({ error: 'Code is required' });
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'Code is required' });
+  }
 
   if (!OCAMLFORMAT_PATH) {
     return res.status(501).json({ error: 'ocamlformat not available' });
   }
 
+  const tmpDir = join(tmpdir(), `caraml-fmt-${randomUUID()}`);
   try {
-    const tmpDir = join(tmpdir(), `caraml-fmt-${randomUUID()}`);
     mkdirSync(tmpDir, { recursive: true });
     const tmpFile = join(tmpDir, 'code.ml');
     const confFile = join(tmpDir, '.ocamlformat');
@@ -342,28 +384,32 @@ router.post('/format', (req, res) => {
     writeFileSync(confFile, 'profile = default\nmargin = 80\n');
     writeFileSync(tmpFile, code);
 
-    const formatted = execFileSync(OCAMLFORMAT_PATH, [tmpFile], {
+    const { stdout: formatted } = await execFileAsync(OCAMLFORMAT_PATH, [tmpFile], {
       encoding: 'utf8',
       timeout: 5000,
       cwd: tmpDir,
       env: TOOL_ENV,
     });
 
-    rmSync(tmpDir, { recursive: true, force: true });
     res.json({ formatted });
   } catch (err) {
     res.status(422).json({ error: err.stderr?.toString() || err.message || 'Format failed' });
+  } finally {
+    try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
 });
 
-router.post('/merlin/complete', (req, res) => {
+router.post('/merlin/complete', merlinRateLimit, async (req, res) => {
   const { code, position, prefix } = req.body;
   if (!OCAMLMERLIN_PATH) {
     return res.json({ backend: false, completions: [] });
   }
+  if (typeof code !== 'string' || !position) {
+    return res.status(400).json({ error: 'Code and position are required' });
+  }
 
   try {
-    const parsed = runMerlin([
+    const parsed = await runMerlin([
       'complete-prefix',
       '-position', `${position.line}:${position.column}`,
       '-prefix', prefix || '',
@@ -383,14 +429,17 @@ router.post('/merlin/complete', (req, res) => {
   }
 });
 
-router.post('/merlin/type', (req, res) => {
+router.post('/merlin/type', merlinRateLimit, async (req, res) => {
   const { code, position } = req.body;
   if (!OCAMLMERLIN_PATH) {
     return res.json({ backend: false });
   }
+  if (typeof code !== 'string' || !position) {
+    return res.status(400).json({ error: 'Code and position are required' });
+  }
 
   try {
-    const parsed = runMerlin([
+    const parsed = await runMerlin([
       'type-enclosing',
       '-position', `${position.line}:${position.column}`,
     ], code);
@@ -405,14 +454,17 @@ router.post('/merlin/type', (req, res) => {
   }
 });
 
-router.post('/merlin/errors', (req, res) => {
+router.post('/merlin/errors', merlinRateLimit, async (req, res) => {
   const { code } = req.body;
   if (!OCAMLMERLIN_PATH) {
     return res.json({ backend: false, errors: [] });
   }
+  if (typeof code !== 'string') {
+    return res.status(400).json({ error: 'Code is required' });
+  }
 
   try {
-    const parsed = runMerlin(['errors'], code);
+    const parsed = await runMerlin(['errors'], code);
 
     if (parsed.class === 'return' && Array.isArray(parsed.value)) {
       const errors = parsed.value.map(e => ({
@@ -481,7 +533,7 @@ export function runOcamlToplevel(code) {
       }
 
       const values = [];
-      const fullOutput = stdout.replace(/^OCaml version.*\n/m, '').replace(/^Enter #help;;.*\n?/m, '');
+      const fullOutput = stdout.replace(/^\s*OCaml version[^\n]*\n/m, '').replace(/^\s*Enter #help;;[^\n]*\n?/m, '');
       const valRegex = /val\s+(\w+)\s*:\s*([^=]+)=\s*(.*)/g;
       let match;
       while ((match = valRegex.exec(fullOutput)) !== null) {
