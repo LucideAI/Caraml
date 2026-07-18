@@ -1,0 +1,16 @@
+services:
+  caraml:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in your environment}
+      CARAML_DB_PATH: /data/caraml.db
+      CARAML_ENABLE_NATIVE_EXECUTION: "0"
+    volumes:
+      - caraml-data:/data
+    restart: unless-stopped
+
+volumes:
+  caraml-data:

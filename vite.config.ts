@@ -6,6 +6,7 @@ const parsedApiPort = Number.parseInt(apiPortRaw, 10);
 const apiPort = Number.isFinite(parsedApiPort) && parsedApiPort > 0 ? parsedApiPort : 3001;
 
 export default defineConfig({
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [react()],
   server: {
     port: 5173,

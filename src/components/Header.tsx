@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import {
   ArrowLeft, Save, Share2, Play, Loader2, Settings, LogOut, User, FolderOpen,
   PanelLeftClose, PanelLeftOpen, PanelBottomClose, PanelBottomOpen, BrainCircuit,
-  Keyboard, AlignLeft, GraduationCap, Sun, Moon,
+  Keyboard, AlignLeft, GraduationCap, Sun, Moon, Github,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -18,6 +18,7 @@ interface HeaderProps {
 }
 
 export function Header({ mode = 'dashboard', onRun, onFormat, projectName, renderLeft, renderCenter, renderRight }: HeaderProps) {
+  const isStaticDemo = import.meta.env.VITE_STATIC_DEMO === 'true';
   const navigate = useNavigate();
   const {
     user, logout, saveProject, isDirty, isRunning, lastSaved,
@@ -52,6 +53,17 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName, rende
       <div className="flex items-center gap-2">
         {mode === 'custom' ? (
           renderLeft
+        ) : isStaticDemo ? (
+          <a
+            href="https://github.com/LucideAI/Caraml"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary btn-sm"
+            title="View Caraml on GitHub"
+          >
+            <Github size={14} />
+            <span className="hidden sm:inline">GitHub</span>
+          </a>
         ) : (
           <>
             {mode === 'dashboard' && (

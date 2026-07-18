@@ -11,9 +11,25 @@ const execFileAsync = promisify(execFile);
 
 const router = Router();
 
+const configuredMaxCodeBytes = Number.parseInt(process.env.CARAML_MAX_CODE_BYTES || '', 10);
+const MAX_CODE_BYTES = Number.isFinite(configuredMaxCodeBytes) && configuredMaxCodeBytes > 0
+  ? configuredMaxCodeBytes
+  : 100_000;
+const NATIVE_EXECUTION_ENABLED = process.env.NODE_ENV !== 'production'
+  || process.env.CARAML_ENABLE_NATIVE_EXECUTION === '1';
+
 // Anonymous endpoints that spawn processes — keep abuse in check.
 const executeRateLimit = rateLimit({ windowMs: 60_000, max: 30 });
 const merlinRateLimit = rateLimit({ windowMs: 60_000, max: 120 });
+
+// Keep native process endpoints bounded. Production defaults to the browser
+// interpreter unless the operator explicitly enables an external sandbox.
+router.use((req, res, next) => {
+  if (typeof req.body?.code === 'string' && Buffer.byteLength(req.body.code, 'utf8') > MAX_CODE_BYTES) {
+    return res.status(413).json({ error: `Code exceeds the ${MAX_CODE_BYTES}-byte limit` });
+  }
+  next();
+});
 
 // ── Detect available OCaml tools ────────────────────────────────────────────
 function getPathKey(env) {
@@ -35,7 +51,15 @@ function pathsEqual(a, b) {
 }
 
 function buildToolEnv() {
-  const env = { ...process.env };
+  // Never expose application secrets (JWT_SECRET, database configuration,
+  // deployment credentials, etc.) to user-submitted OCaml programs.
+  const env = {};
+  for (const key of [
+    'PATH', 'Path', 'PATHEXT', 'SystemRoot', 'WINDIR', 'TEMP', 'TMP',
+    'HOME', 'USERPROFILE', 'OPAMROOT', 'OPAMSWITCH',
+  ]) {
+    if (process.env[key]) env[key] = process.env[key];
+  }
   const pathKey = getPathKey(env);
   const pathValue = env[pathKey] || '';
   const pathEntries = pathValue.split(delimiter).map((entry) => entry.trim()).filter(Boolean);
@@ -110,9 +134,9 @@ function resolveTool(toolName, overrideEnvVar, env) {
 }
 
 const TOOL_ENV = buildToolEnv();
-const OCAML_PATH = resolveTool('ocaml', 'CARAML_OCAML_PATH', TOOL_ENV);
-const OCAMLMERLIN_PATH = resolveTool('ocamlmerlin', 'CARAML_OCAMLMERLIN_PATH', TOOL_ENV);
-const OCAMLFORMAT_PATH = resolveTool('ocamlformat', 'CARAML_OCAMLFORMAT_PATH', TOOL_ENV);
+const OCAML_PATH = NATIVE_EXECUTION_ENABLED ? resolveTool('ocaml', 'CARAML_OCAML_PATH', TOOL_ENV) : null;
+const OCAMLMERLIN_PATH = NATIVE_EXECUTION_ENABLED ? resolveTool('ocamlmerlin', 'CARAML_OCAMLMERLIN_PATH', TOOL_ENV) : null;
+const OCAMLFORMAT_PATH = NATIVE_EXECUTION_ENABLED ? resolveTool('ocamlformat', 'CARAML_OCAMLFORMAT_PATH', TOOL_ENV) : null;
 const OCAML_VERSION = OCAML_PATH ? (() => {
   try {
     return execFileSync(OCAML_PATH, ['-version'], {
@@ -128,6 +152,9 @@ const OCAML_VERSION = OCAML_PATH ? (() => {
 
 export function logToolchain() {
   console.log('  OCaml toolchain:');
+  if (!NATIVE_EXECUTION_ENABLED) {
+    console.log('    native execution disabled in production (browser interpreter active)');
+  }
   console.log(`    ocaml:       ${OCAML_PATH || '(not found — fallback to browser interpreter)'}`);
   console.log(`    ocamlmerlin: ${OCAMLMERLIN_PATH || '(not found — basic completions only)'}`);
   console.log(`    ocamlformat: ${OCAMLFORMAT_PATH || '(not found — formatting disabled)'}`);
