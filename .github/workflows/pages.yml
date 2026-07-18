@@ -29,6 +29,8 @@ jobs:
         env:
           VITE_BASE_PATH: /Caraml/
           VITE_STATIC_DEMO: "true"
+      - name: Add SPA route fallback
+        run: cp dist/index.html dist/404.html
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
