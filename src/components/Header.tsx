@@ -53,17 +53,6 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName, rende
       <div className="flex items-center gap-2">
         {mode === 'custom' ? (
           renderLeft
-        ) : isStaticDemo ? (
-          <a
-            href="https://github.com/LucideAI/Caraml"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-secondary btn-sm"
-            title="View Caraml on GitHub"
-          >
-            <Github size={14} />
-            <span className="hidden sm:inline">GitHub</span>
-          </a>
         ) : (
           <>
             {mode === 'dashboard' && (
@@ -284,6 +273,17 @@ export function Header({ mode = 'dashboard', onRun, onFormat, projectName, rende
               </div>
             )}
           </div>
+        ) : isStaticDemo ? (
+          <a
+            href="https://github.com/LucideAI/Caraml"
+            target="_blank"
+            rel="noreferrer"
+            className="btn-secondary btn-sm"
+            title="View Caraml on GitHub"
+          >
+            <Github size={14} />
+            <span className="hidden sm:inline">GitHub</span>
+          </a>
         ) : (
           <button onClick={() => setShowAuthModal(true)} className="btn-primary btn-sm">
             <User size={14} />
