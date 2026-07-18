@@ -18,12 +18,13 @@ import {
   computeAutoMemoryPanelWidth,
   fitPanelsToViewport,
 } from '../utils/panelSizing';
+import { GUEST_PROJECT_ID } from '../demo/guestProject';
 
 export function IDEPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const {
-    user, currentProject, isProjectLoading, loadProject,
+    user, currentProject, isProjectLoading, loadProject, openGuestProject,
     activeFile, openTabs, setActiveFile, closeTab,
     showFileTree, showConsole, showMemoryPanel,
     isDirty, saveProject, capabilities, loadCapabilities,
@@ -56,14 +57,16 @@ export function IDEPage() {
   }, [loadCapabilities]);
 
   useEffect(() => {
-    if (projectId && authUserId) {
+    if (projectId === GUEST_PROJECT_ID) {
+      if (currentProjectId !== GUEST_PROJECT_ID) openGuestProject();
+    } else if (projectId && authUserId) {
       if (currentProjectId !== projectId) {
         loadProject(projectId);
       }
     } else if (!authUserId) {
       useStore.getState().setShowAuthModal(true);
     }
-  }, [projectId, authUserId, currentProjectId, loadProject]);
+  }, [projectId, authUserId, currentProjectId, loadProject, openGuestProject]);
 
   // Auto-save
   useEffect(() => {

@@ -1,10 +1,15 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, resolve } from 'path';
+import { mkdirSync } from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const DB_PATH = join(__dirname, '..', 'caraml.db');
+const DB_PATH = process.env.CARAML_DB_PATH
+  ? resolve(process.env.CARAML_DB_PATH)
+  : join(__dirname, '..', 'caraml.db');
+
+mkdirSync(dirname(DB_PATH), { recursive: true });
 
 const db = new Database(DB_PATH);
 db.pragma('journal_mode = WAL');

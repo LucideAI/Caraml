@@ -52,6 +52,9 @@ app.use((req, res, next) => {
 app.use(express.static(join(__dirname, 'dist')));
 
 // ── Routes ──────────────────────────────────────────────────────────────────
+app.get('/api/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
 app.use('/api', authRoutes);
 app.use('/api', projectRoutes);
 app.use('/api', ocamlRoutes);
